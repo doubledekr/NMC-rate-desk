@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NMC Rate Desk</title>
+<style>
+:root{--brand:#A53222;--ink:#26262E;--muted:#5C616E;--line:#E2DCCF;--paper:#FBF8F2;--cream:#F8F2E8;--good:#2E6B4F;--warn:#9A4E0E;--bad:#B3261E}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:14px/1.5 "Segoe UI",Arial,Helvetica,sans-serif}
+h1,h2{font-family:Georgia,"Times New Roman",serif;font-weight:400;margin:0}
+h1{font-size:24px}h2{font-size:18px;margin-bottom:10px}
+.wrap{max-width:1040px;margin:0 auto;padding:18px 22px 40px}
+.top{display:flex;align-items:center;gap:14px;border-bottom:3px solid var(--ink);padding-bottom:12px;margin-bottom:16px}
+.top .tag{font-size:12px;color:var(--muted)}
+.top .sp{flex:1}
+.status{display:flex;gap:14px;font-size:12px;color:var(--muted)}
+.status .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#bbb;margin-right:5px;vertical-align:middle}
+.status .dot.on{background:var(--good)}.status .dot.off{background:var(--bad)}
+.grid{display:grid;grid-template-columns:1.25fr 1fr;gap:18px}
+.panel{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+table{width:100%;border-collapse:collapse}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+td.num,th.num{text-align:right}
+input[type=text],textarea{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:#fff}
+input.rate{width:110px;text-align:right;font-family:Georgia,serif;font-size:16px}
+input.rate.bad{border-color:var(--bad);background:#FFF4F3}
+.live{font-family:Georgia,serif;font-size:16px;color:var(--muted)}
+.delta{font-size:12px;margin-left:6px}.delta.up{color:var(--bad)}.delta.down{color:var(--good)}.delta.flat{color:var(--muted)}
+.btn{display:inline-block;padding:9px 16px;border-radius:8px;border:1px solid var(--brand);background:var(--brand);color:#fff;font:inherit;font-weight:600;cursor:pointer}
+.btn:disabled{opacity:.5;cursor:default}
+.btn.ghost{background:#fff;color:var(--brand)}
+.btn.small{padding:5px 10px;font-size:12px;font-weight:500}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.hint{font-size:12px;color:var(--muted)}
+.ok{color:var(--good)}.err{color:var(--bad)}
+.banner{border-radius:10px;padding:10px 14px;margin:10px 0;font-size:13px}
+.banner.good{background:#E3F1E7;border:1px solid #BFE0C9}.banner.bad{background:#FDECEA;border:1px solid #F3C2BE}.banner.info{background:var(--cream);border:1px solid var(--line)}
+#updateBar{display:none;background:#FFF3C4;border-bottom:1px solid #E8D88A;padding:8px 22px;font-size:13px}
+.modal{position:fixed;inset:0;background:rgba(35,36,43,.45);display:none;align-items:center;justify-content:center;z-index:50}
+.modal .box{background:#fff;border-radius:14px;padding:22px 24px;width:560px;max-width:92vw;max-height:88vh;overflow:auto}
+.chart{width:100%;height:160px;display:block}
+.toast{position:fixed;right:18px;bottom:18px;background:var(--ink);color:#fff;padding:10px 14px;border-radius:10px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.on{opacity:1}
+.hist tr:hover{background:var(--cream)}
+.kbd{font-family:Consolas,monospace;font-size:12px;background:var(--cream);padding:1px 5px;border-radius:4px}
+</style>
+</head>
+<body>
+<div id="updateBar"></div>
+<div class="wrap">
+  <div class="top">
+    <div><h1>NMC Rate Desk</h1><div class="tag">Publishes VA par rates by credit tier to every NMC Toolkit</div></div>
+    <span class="sp"></span>
+    <div class="status"><span><span class="dot" id="dotGh"></span><span id="ghText">GitHub: not connected</span></span><span><span class="dot" id="dotPing"></span><span id="pingText">Relay</span></span><span id="ver"></span></div>
+    <button class="btn ghost small" onclick="openSettings()">Settings</button>
+  </div>
+
+  <div id="firstRun" class="banner info" style="display:none"><b>First run:</b> paste the publishing key in Settings to connect this app to GitHub. You only do this once.</div>
+  <div id="msg"></div>
+
+  <div class="grid">
+    <div class="panel">
+      <h2>Today's rates</h2>
+      <table id="rateTable">
+        <thead><tr><th>Credit tier</th><th class="num">Live now</th><th class="num">New VA Streamline rate</th></tr></thead>
+        <tbody id="tiers"></tbody>
+      </table>
+      <div style="margin-top:12px"><label class="hint">Note for this publish (optional — shows on the toolkit banner)</label><input type="text" id="note" placeholder="e.g. MBS rallied after CPI" maxlength="140"></div>
+      <div class="row" style="margin-top:14px"><button class="btn" id="publishBtn" onclick="confirmPublish()">Publish rates</button><button class="btn ghost" onclick="fillFromLive()">Reset to live</button><span class="hint" id="validMsg"></span></div>
+      <div class="hint" style="margin-top:10px">Rates accept <span class="kbd">5.625</span>, <span class="kbd">5.625%</span> or <span class="kbd">5 5/8</span>. Lower credit tiers can't carry a lower rate than the tier above them.</div>
+    </div>
+    <div class="panel">
+      <h2>Live on the toolkits</h2>
+      <div id="liveBox" class="hint">Loading…</div>
+      <h2 style="margin-top:18px">680+ tier, last 30 days</h2>
+      <svg id="chart" class="chart" viewBox="0 0 440 160" preserveAspectRatio="none"></svg>
+      <div class="hint" id="chartHint"></div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-top:18px">
+    <h2>History</h2>
+    <table class="hist"><thead><tr><th>Published</th><th>By</th><th class="num">680+</th><th class="num">660–679</th><th class="num">640–659</th><th class="num">620–639</th><th class="num">600–619</th><th class="num">580–599</th><th class="num">&lt;580</th><th>Note</th></tr></thead><tbody id="hist"></tbody></table>
+  </div>
+</div>
+
+<div class="modal" id="confirm"><div class="box">
+  <h2>Publish these rates?</h2>
+  <table><thead><tr><th>Tier</th><th class="num">Live</th><th class="num">New</th><th class="num">Change</th></tr></thead><tbody id="diff"></tbody></table>
+  <div class="hint" id="diffNote" style="margin-top:8px"></div>
+  <div class="row" style="margin-top:14px;justify-content:flex-end"><button class="btn ghost" onclick="closeConfirm()">Cancel</button><button class="btn" id="goBtn" onclick="doPublish()">Publish now</button></div>
+</div></div>
+
+<div class="modal" id="settings"><div class="box">
+  <h2>Settings</h2>
+  <p class="hint">This app publishes to <b>github.com/doubledekr/nmc-rate-desk</b>. The publishing key is a GitHub fine-grained token for that one repo (Contents: read and write). It is stored encrypted on this computer and survives updates.</p>
+  <label class="hint">Publishing key</label>
+  <div class="row"><input type="text" id="tokenIn" placeholder="github_pat_…" style="flex:1"><button class="btn small" onclick="saveToken()">Save &amp; verify</button><button class="btn ghost small" onclick="clearToken()">Remove</button></div>
+  <div id="tokenMsg" class="hint" style="margin:6px 0 14px"></div>
+  <label class="hint">Publisher name (shown on the toolkit banner and in history)</label><input type="text" id="pubName" style="margin-bottom:12px">
+  <label class="hint">Instant-ping relay</label>
+  <div class="row"><input type="text" id="pingServer" style="width:200px"><input type="text" id="pingTopic" style="flex:1"><button class="btn ghost small" onclick="pingTest()">Send test ping</button></div>
+  <div class="hint" style="margin:6px 0 14px">The topic name is generated once and written into rates.json, so toolkits find it on their own. Change it only if you also want every toolkit to re-read it on its next poll.</div>
+  <div class="row" style="justify-content:flex-end"><button class="btn ghost" onclick="closeSettings()">Close</button><button class="btn" onclick="saveSettings()">Save</button></div>
+</div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const TIERS=["680+","660-679","640-659","620-639","600-619","580-599","<580"];
+const TIER_LABEL={"680+":"680 and up","660-679":"660–679","640-659":"640–659","620-639":"620–639","600-619":"600–619","580-599":"580–599","<580":"Below 580"};
+const $=id=>document.getElementById(id);
+let live=null, history=[], settings={};
+const pct=v=>v==null||isNaN(v)?"—":(+v).toFixed(3).replace(/0$/,"")+"%";
+function parseRate(s){ s=String(s||"").trim().replace(/%$/,"").trim(); if(!s) return null; const m=s.match(/^(\d+)\s+(\d+)\/(\d+)$/); if(m) return +m[1]+(+m[2])/(+m[3]); const f=s.match(/^(\d+)\/(\d+)$/); if(f) return (+f[1])/(+f[2]); const n=parseFloat(s); return isNaN(n)?null:n; }
+function toast(t){ const el=$("toast"); el.textContent=t; el.classList.add("on"); clearTimeout(toast.t); toast.t=setTimeout(()=>el.classList.remove("on"),3500); }
+function msg(kind,html){ $("msg").innerHTML=html?`<div class="banner ${kind}">${html}</div>`:""; }
+function delta(now,prev){ if(prev==null||now==null) return ""; const d=+(now-prev).toFixed(3); if(Math.abs(d)<0.0005) return `<span class="delta flat">—</span>`; return `<span class="delta ${d>0?"up":"down"}">${d>0?"▲":"▼"} ${Math.abs(d).toFixed(3).replace(/0$/,"")}</span>`; }
+function fmtWhen(iso){ try{ return new Date(iso).toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}); }catch(e){ return iso; } }
+
+function renderTiers(){ const t=live&&live.products&&live.products.va_irrrl?live.products.va_irrrl.tiers:{};
+  $("tiers").innerHTML=TIERS.map(k=>`<tr><td><b>${TIER_LABEL[k]}</b></td><td class="num live">${pct(t[k])}</td><td class="num"><input class="rate" data-tier="${k}" value="${t[k]!=null?t[k]:""}" oninput="validate()"></td></tr>`).join(""); validate(); }
+function readTiers(){ const out={}; let ok=true; TIERS.forEach(k=>{ const el=document.querySelector(`input[data-tier="${k}"]`); const v=parseRate(el.value); el.classList.toggle("bad", v==null||v<2||v>15); if(v==null||v<2||v>15) ok=false; out[k]=v; }); return {out,ok}; }
+function validate(){ const {out,ok}=readTiers(); let m=""; if(!ok) m="Fill every tier with a rate between 2% and 15%.";
+  else { for(let i=1;i<TIERS.length;i++){ if(out[TIERS[i]]<out[TIERS[i-1]]-1e-9){ m=`${TIER_LABEL[TIERS[i]]} is lower than ${TIER_LABEL[TIERS[i-1]]} — lower tiers can't beat the tier above.`; break; } } }
+  $("validMsg").textContent=m; $("validMsg").className="hint "+(m?"err":""); $("publishBtn").disabled=!!m; return !m; }
+function fillFromLive(){ renderTiers(); $("note").value=""; }
+
+function renderLive(){ const b=$("liveBox"); if(!live){ b.innerHTML="Nothing published yet."; return; } if(live.error){ b.innerHTML=`<span class="err">${live.error}</span>`; return; }
+  const t=live.products&&live.products.va_irrrl?live.products.va_irrrl.tiers:{}; const prev=history[1]&&history[1].products&&history[1].products.va_irrrl?history[1].products.va_irrrl.tiers:{};
+  b.innerHTML=`<div><b>${fmtWhen(live.published)}</b> · ${live.by||""}${live.note?` · <i>${esc(live.note)}</i>`:""}</div><table style="margin-top:6px">${TIERS.map(k=>`<tr><td>${TIER_LABEL[k]}</td><td class="num"><span class="live" style="color:var(--ink)">${pct(t[k])}</span>${delta(t[k],prev[k])}</td></tr>`).join("")}</table>`; }
+function renderHistory(){ $("hist").innerHTML=history.length?history.slice(0,40).map((h,i)=>{ const t=h.products&&h.products.va_irrrl?h.products.va_irrrl.tiers:{}; const p=history[i+1]&&history[i+1].products&&history[i+1].products.va_irrrl?history[i+1].products.va_irrrl.tiers:{};
+  return `<tr><td>${fmtWhen(h.published)}</td><td>${esc(h.by||"")}</td>${TIERS.map(k=>`<td class="num">${pct(t[k])}${delta(t[k],p[k])}</td>`).join("")}<td class="hint">${esc(h.note||"")}</td></tr>`; }).join(""):`<tr><td colspan="10" class="hint">No publishes yet.</td></tr>`;
+  renderChart(); }
+function renderChart(){ const svg=$("chart"); const cutoff=Date.now()-30*86400000; const pts=history.filter(h=>Date.parse(h.published)>cutoff&&h.products&&h.products.va_irrrl).map(h=>({t:Date.parse(h.published),v:h.products.va_irrrl.tiers["680+"]})).filter(p=>p.v!=null).sort((a,b)=>a.t-b.t);
+  if(pts.length<2){ svg.innerHTML=""; $("chartHint").textContent=pts.length?"One publish so far — the line starts with the next one.":""; return; }
+  const W=440,H=160,L=44,R=10,T=12,B=24; const t0=pts[0].t,t1=pts[pts.length-1].t; let lo=Math.min(...pts.map(p=>p.v)),hi=Math.max(...pts.map(p=>p.v)); if(hi-lo<0.25){ const m=(hi+lo)/2; lo=m-0.125; hi=m+0.125; }
+  const X=t=>L+(t-t0)/Math.max(1,t1-t0)*(W-L-R), Y=v=>T+(hi-v)/(hi-lo)*(H-T-B);
+  const d=pts.map((p,i)=>(i?"L":"M")+X(p.t).toFixed(1)+" "+Y(p.v).toFixed(1)).join(" ");
+  const ticks=[lo,(lo+hi)/2,hi]; svg.innerHTML=ticks.map(v=>`<line x1="${L}" x2="${W-R}" y1="${Y(v)}" y2="${Y(v)}" stroke="#EFEAE0"/><text x="${L-6}" y="${Y(v)+4}" font-size="10" text-anchor="end" fill="#5C616E">${v.toFixed(3).replace(/0$/,"")}%</text>`).join("")
+    +`<path d="${d}" fill="none" stroke="#A53222" stroke-width="2" vector-effect="non-scaling-stroke"/>`+pts.map(p=>`<circle cx="${X(p.t)}" cy="${Y(p.v)}" r="3" fill="#A53222"><title>${fmtWhen(new Date(p.t).toISOString())} — ${pct(p.v)}</title></circle>`).join("")
+    +`<text x="${L}" y="${H-6}" font-size="10" fill="#5C616E">${new Date(t0).toLocaleDateString("en-US",{month:"short",day:"numeric"})}</text><text x="${W-R}" y="${H-6}" font-size="10" text-anchor="end" fill="#5C616E">${new Date(t1).toLocaleDateString("en-US",{month:"short",day:"numeric"})}</text>`;
+  $("chartHint").textContent=`${pts.length} publishes · low ${pct(Math.min(...pts.map(p=>p.v)))} · high ${pct(Math.max(...pts.map(p=>p.v)))}`; }
+const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+async function refresh(){ const has=await rateDesk.hasToken(); $("firstRun").style.display=has?"none":"block";
+  if(!has){ setGh(false,"GitHub: no publishing key"); live=null; history=[]; renderTiers(); renderLive(); renderHistory(); return; }
+  const [l,h]=await Promise.all([rateDesk.live(), rateDesk.history()]);
+  if(l&&l.error){ setGh(false,"GitHub: "+l.error); live=null; } else { live=l; setGh(true,"GitHub: connected · doubledekr/nmc-rate-desk"); }
+  history=Array.isArray(h)?h:[]; renderTiers(); renderLive(); renderHistory(); }
+function setGh(on,text){ $("dotGh").className="dot "+(on?"on":"off"); $("ghText").textContent=text; }
+
+function confirmPublish(){ if(!validate()) return; const {out}=readTiers(); const t=live&&live.products&&live.products.va_irrrl?live.products.va_irrrl.tiers:{};
+  $("diff").innerHTML=TIERS.map(k=>`<tr><td>${TIER_LABEL[k]}</td><td class="num live">${pct(t[k])}</td><td class="num"><b>${pct(out[k])}</b></td><td class="num">${delta(out[k],t[k])||"<span class='hint'>new</span>"}</td></tr>`).join("");
+  const same=TIERS.every(k=>t[k]!=null&&Math.abs(t[k]-out[k])<1e-9); $("diffNote").innerHTML=same?"<b>These are the same rates that are live now.</b> Publishing again re-alerts every toolkit — usually you only want that if the note changed.":($("note").value.trim()?"Note: "+esc($("note").value.trim()):"");
+  $("confirm").style.display="flex"; }
+function closeConfirm(){ $("confirm").style.display="none"; }
+async function doPublish(){ const {out,ok}=readTiers(); if(!ok) return; $("goBtn").disabled=true; $("goBtn").textContent="Publishing…";
+  try{ const r=await rateDesk.publish({ by: settings.publisher, note: $("note").value, products: { va_irrrl: { label: "VA Streamline", tiers: out } } });
+    closeConfirm(); msg("good",`<b>Live ${fmtWhen(r.version)}.</b> ${r.pinged?"Toolkits were pinged instantly.":"The instant ping didn’t go through — toolkits will pick it up on their next check within a few minutes."}${r.commit?` <a href="#" onclick="rateDesk.open('${r.commit}');return false">View the commit</a>`:""}`);
+    $("note").value=""; await refresh(); }
+  catch(e){ closeConfirm(); msg("bad","<b>Publish failed:</b> "+esc(e.message||e)); }
+  $("goBtn").disabled=false; $("goBtn").textContent="Publish now"; }
+
+async function openSettings(){ settings=await rateDesk.settings(); $("pubName").value=settings.publisher||""; $("pingServer").value=settings.pingServer||""; $("pingTopic").value=settings.pingTopic||""; $("tokenIn").value=""; $("tokenMsg").textContent=(await rateDesk.hasToken())?"A publishing key is saved on this computer.":"No publishing key yet."; $("settings").style.display="flex"; }
+function closeSettings(){ $("settings").style.display="none"; }
+async function saveSettings(){ settings=await rateDesk.saveSettings({ publisher: $("pubName").value.trim()||"Rate Desk", pingServer: $("pingServer").value.trim()||"https://ntfy.sh", pingTopic: $("pingTopic").value.trim()||settings.pingTopic }); closeSettings(); toast("Settings saved"); }
+async function saveToken(){ const t=$("tokenIn").value.trim(); if(!t){ $("tokenMsg").textContent="Paste the key first."; return; } $("tokenMsg").textContent="Checking with GitHub…";
+  const v=await rateDesk.verify(t); if(!v.ok){ $("tokenMsg").innerHTML=`<span class="err">${esc(v.error)}</span>`; return; }
+  const canWrite=v.permissions&&(v.permissions.push||v.permissions.admin||v.permissions.maintain); await rateDesk.setToken(t); $("tokenIn").value="";
+  $("tokenMsg").innerHTML=canWrite?`<span class="ok">Connected to ${esc(v.repo)} with write access. Saved.</span>`:`<span class="err">Connected to ${esc(v.repo)}, but this key can’t write to it — check that Contents is set to Read and write.</span>`; refresh(); }
+async function clearToken(){ await rateDesk.clearToken(); $("tokenMsg").textContent="Removed."; refresh(); }
+async function pingTest(){ await saveSettings(); const ok=await rateDesk.pingTest(); $("dotPing").className="dot "+(ok?"on":"off"); toast(ok?"Test ping sent":"Couldn’t reach the relay"); openSettings(); }
+
+rateDesk.onUpdateStatus(s=>{ const b=$("updateBar"); if(s.state==="ready"){ b.style.display="block"; b.innerHTML=`Version ${s.version} is ready. <button class="btn small" onclick="rateDesk.installUpdate()">Update &amp; restart</button>`; }
+  else if(s.state==="manual"){ b.style.display="block"; b.innerHTML=`Version ${s.version} is available. <button class="btn small" onclick="rateDesk.openReleases()">Download</button>`; }
+  else if(s.state==="downloading"){ b.style.display="block"; b.textContent=`Downloading version ${s.version}…`; } });
+(async()=>{ $("ver").textContent="v"+rateDesk.version(); settings=await rateDesk.settings(); $("pingText").textContent="Relay: "+settings.pingServer.replace(/^https?:\/\//,""); $("dotPing").className="dot on"; await refresh(); setInterval(refresh, 10*60*1000); })();
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "version": "2026-11-03T20:30:00Z",
+  "published": "2026-11-03T20:30:00Z",
+  "by": "Rate Desk",
+  "note": "Sample rates — replace with today's from the Rate Desk app",
+  "ping": { "server": "https://ntfy.sh", "topic": "" },
+  "products": {
+    "va_irrrl": {
+      "label": "VA Streamline",
+      "tiers": { "680+": 5.625, "660-679": 5.75, "640-659": 5.875, "620-639": 6.0, "600-619": 6.125, "580-599": 6.25, "<580": 6.5 }
+    }
+  }
+}
