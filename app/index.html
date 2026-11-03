@@ -74,7 +74,7 @@ input.rate.bad{border-color:var(--bad);background:#FFF4F3}
     <div class="panel">
       <h2>Live on the toolkits</h2>
       <div id="liveBox" class="hint">Loading…</div>
-      <h2 style="margin-top:18px">680+ tier, last 30 days</h2>
+      <h2 style="margin-top:18px">640+ tier, last 30 days</h2>
       <svg id="chart" class="chart" viewBox="0 0 440 160" preserveAspectRatio="none"></svg>
       <div class="hint" id="chartHint"></div>
     </div>
@@ -82,7 +82,7 @@ input.rate.bad{border-color:var(--bad);background:#FFF4F3}
 
   <div class="panel" style="margin-top:18px">
     <h2>History</h2>
-    <table class="hist"><thead><tr><th>Published</th><th>By</th><th class="num">680+</th><th class="num">660–679</th><th class="num">640–659</th><th class="num">620–639</th><th class="num">600–619</th><th class="num">580–599</th><th class="num">&lt;580</th><th>Note</th></tr></thead><tbody id="hist"></tbody></table>
+    <table class="hist"><thead><tr><th>Published</th><th>By</th><th class="num">640+</th><th class="num">620–639</th><th class="num">580–619</th><th class="num">&lt;580</th><th>Note</th></tr></thead><tbody id="hist"></tbody></table>
   </div>
 </div>
 
@@ -109,8 +109,12 @@ input.rate.bad{border-color:var(--bad);background:#FFF4F3}
 <div class="toast" id="toast"></div>
 
 <script>
-const TIERS=["680+","660-679","640-659","620-639","600-619","580-599","<580"];
-const TIER_LABEL={"680+":"680 and up","660-679":"660–679","640-659":"640–659","620-639":"620–639","600-619":"600–619","580-599":"580–599","<580":"Below 580"};
+const TIERS=["640+","620-639","580-619","<580"];
+const TIER_LABEL={"640+":"640 and up","620-639":"620–639","580-619":"580–619","<580":"Below 580"};
+/* Publishes made before v1.1 used 7 tiers. Read them through the new names so "Live now", arrows and the chart keep working. */
+const LEGACY={"640+":"680+","580-619":"600-619"};
+const tv=(t,k)=>!t?null:(t[k]!=null?t[k]:(LEGACY[k]&&t[LEGACY[k]]!=null?t[LEGACY[k]]:null));
+const vaTiers=h=>{ const t=h&&h.products&&h.products.va_irrrl?h.products.va_irrrl.tiers:null; if(!t) return {}; const o={}; TIERS.forEach(k=>{ o[k]=tv(t,k); }); return o; };
 const $=id=>document.getElementById(id);
 let live=null, history=[], settings={};
 const pct=v=>v==null||isNaN(v)?"—":(+v).toFixed(3).replace(/0$/,"")+"%";
@@ -120,7 +124,7 @@ function msg(kind,html){ $("msg").innerHTML=html?`<div class="banner ${kind}">${
 function delta(now,prev){ if(prev==null||now==null) return ""; const d=+(now-prev).toFixed(3); if(Math.abs(d)<0.0005) return `<span class="delta flat">—</span>`; return `<span class="delta ${d>0?"up":"down"}">${d>0?"▲":"▼"} ${Math.abs(d).toFixed(3).replace(/0$/,"")}</span>`; }
 function fmtWhen(iso){ try{ return new Date(iso).toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}); }catch(e){ return iso; } }
 
-function renderTiers(){ const t=live&&live.products&&live.products.va_irrrl?live.products.va_irrrl.tiers:{};
+function renderTiers(){ const t=vaTiers(live);
   $("tiers").innerHTML=TIERS.map(k=>`<tr><td><b>${TIER_LABEL[k]}</b></td><td class="num live">${pct(t[k])}</td><td class="num"><input class="rate" data-tier="${k}" value="${t[k]!=null?t[k]:""}" oninput="validate()"></td></tr>`).join(""); validate(); }
 function readTiers(){ const out={}; let ok=true; TIERS.forEach(k=>{ const el=document.querySelector(`input[data-tier="${k}"]`); const v=parseRate(el.value); el.classList.toggle("bad", v==null||v<2||v>15); if(v==null||v<2||v>15) ok=false; out[k]=v; }); return {out,ok}; }
 function validate(){ const {out,ok}=readTiers(); let m=""; if(!ok) m="Fill every tier with a rate between 2% and 15%.";
@@ -129,12 +133,12 @@ function validate(){ const {out,ok}=readTiers(); let m=""; if(!ok) m="Fill every
 function fillFromLive(){ renderTiers(); $("note").value=""; }
 
 function renderLive(){ const b=$("liveBox"); if(!live){ b.innerHTML="Nothing published yet."; return; } if(live.error){ b.innerHTML=`<span class="err">${live.error}</span>`; return; }
-  const t=live.products&&live.products.va_irrrl?live.products.va_irrrl.tiers:{}; const prev=history[1]&&history[1].products&&history[1].products.va_irrrl?history[1].products.va_irrrl.tiers:{};
+  const t=vaTiers(live); const prev=vaTiers(history[1]);
   b.innerHTML=`<div><b>${fmtWhen(live.published)}</b> · ${live.by||""}${live.note?` · <i>${esc(live.note)}</i>`:""}</div><table style="margin-top:6px">${TIERS.map(k=>`<tr><td>${TIER_LABEL[k]}</td><td class="num"><span class="live" style="color:var(--ink)">${pct(t[k])}</span>${delta(t[k],prev[k])}</td></tr>`).join("")}</table>`; }
-function renderHistory(){ $("hist").innerHTML=history.length?history.slice(0,40).map((h,i)=>{ const t=h.products&&h.products.va_irrrl?h.products.va_irrrl.tiers:{}; const p=history[i+1]&&history[i+1].products&&history[i+1].products.va_irrrl?history[i+1].products.va_irrrl.tiers:{};
-  return `<tr><td>${fmtWhen(h.published)}</td><td>${esc(h.by||"")}</td>${TIERS.map(k=>`<td class="num">${pct(t[k])}${delta(t[k],p[k])}</td>`).join("")}<td class="hint">${esc(h.note||"")}</td></tr>`; }).join(""):`<tr><td colspan="10" class="hint">No publishes yet.</td></tr>`;
+function renderHistory(){ $("hist").innerHTML=history.length?history.slice(0,40).map((h,i)=>{ const t=vaTiers(h); const p=vaTiers(history[i+1]);
+  return `<tr><td>${fmtWhen(h.published)}</td><td>${esc(h.by||"")}</td>${TIERS.map(k=>`<td class="num">${pct(t[k])}${delta(t[k],p[k])}</td>`).join("")}<td class="hint">${esc(h.note||"")}</td></tr>`; }).join(""):`<tr><td colspan="7" class="hint">No publishes yet.</td></tr>`;
   renderChart(); }
-function renderChart(){ const svg=$("chart"); const cutoff=Date.now()-30*86400000; const pts=history.filter(h=>Date.parse(h.published)>cutoff&&h.products&&h.products.va_irrrl).map(h=>({t:Date.parse(h.published),v:h.products.va_irrrl.tiers["680+"]})).filter(p=>p.v!=null).sort((a,b)=>a.t-b.t);
+function renderChart(){ const svg=$("chart"); const cutoff=Date.now()-30*86400000; const pts=history.filter(h=>Date.parse(h.published)>cutoff&&h.products&&h.products.va_irrrl).map(h=>({t:Date.parse(h.published),v:vaTiers(h)["640+"]})).filter(p=>p.v!=null).sort((a,b)=>a.t-b.t);
   if(pts.length<2){ svg.innerHTML=""; $("chartHint").textContent=pts.length?"One publish so far — the line starts with the next one.":""; return; }
   const W=440,H=160,L=44,R=10,T=12,B=24; const t0=pts[0].t,t1=pts[pts.length-1].t; let lo=Math.min(...pts.map(p=>p.v)),hi=Math.max(...pts.map(p=>p.v)); if(hi-lo<0.25){ const m=(hi+lo)/2; lo=m-0.125; hi=m+0.125; }
   const X=t=>L+(t-t0)/Math.max(1,t1-t0)*(W-L-R), Y=v=>T+(hi-v)/(hi-lo)*(H-T-B);
@@ -152,7 +156,7 @@ async function refresh(){ const has=await rateDesk.hasToken(); $("firstRun").sty
   history=Array.isArray(h)?h:[]; renderTiers(); renderLive(); renderHistory(); }
 function setGh(on,text){ $("dotGh").className="dot "+(on?"on":"off"); $("ghText").textContent=text; }
 
-function confirmPublish(){ if(!validate()) return; const {out}=readTiers(); const t=live&&live.products&&live.products.va_irrrl?live.products.va_irrrl.tiers:{};
+function confirmPublish(){ if(!validate()) return; const {out}=readTiers(); const t=vaTiers(live);
   $("diff").innerHTML=TIERS.map(k=>`<tr><td>${TIER_LABEL[k]}</td><td class="num live">${pct(t[k])}</td><td class="num"><b>${pct(out[k])}</b></td><td class="num">${delta(out[k],t[k])||"<span class='hint'>new</span>"}</td></tr>`).join("");
   const same=TIERS.every(k=>t[k]!=null&&Math.abs(t[k]-out[k])<1e-9); $("diffNote").innerHTML=same?"<b>These are the same rates that are live now.</b> Publishing again re-alerts every toolkit — usually you only want that if the note changed.":($("note").value.trim()?"Note: "+esc($("note").value.trim()):"");
   $("confirm").style.display="flex"; }

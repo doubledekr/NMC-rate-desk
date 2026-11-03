@@ -6,6 +6,6 @@ just became eligible.
 
 - **Install:** download the latest release (Windows `.exe` / Mac `.dmg`). The app updates itself from this page.
 - **First run:** Settings → paste the publishing key (a GitHub fine-grained token scoped to this repo, *Contents: read and write*). It is stored encrypted on that computer and survives updates.
-- **Publish:** fill the seven tiers, add an optional note, Publish. Each publish is a commit here (the audit trail), then an instant ping goes out so toolkits update at once; they also poll every two minutes as a fallback.
+- **Publish:** fill the four tiers (640+, 620–639, 580–619, below 580), add an optional note, Publish. Each publish is a commit here (the audit trail), then an instant ping goes out so toolkits update at once; they also poll every two minutes as a fallback.
 
 `rates/rates.json` is public and read without any login. Pushes to `rates/**` never trigger a build.

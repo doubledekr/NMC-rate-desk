@@ -48,9 +48,14 @@ ipcMain.handle("github:history", async () => { try { const f = await getFile("ra
 
 /* publish: one commit for rates.json, one for history.json (both tiny); then the ping. Returns the commit link. */
 ipcMain.handle("github:publish", async (e, payload) => {
+  /* Credit tiers are 640+ / 620-639 / 580-619 / <580 (v1.1). Until every NMC Toolkit reads the new names, each publish
+     also carries the old 7 tier names filled from the new ones, so older toolkits keep flagging eligible clients. */
+  const LEGACY_FROM = { "680+": "640+", "660-679": "640+", "640-659": "640+", "600-619": "580-619", "580-599": "580-619" };
+  Object.values(payload.products || {}).forEach(p => { if (!p || !p.tiers || p.tiers["640+"] == null) return;
+    Object.entries(LEGACY_FROM).forEach(([old, nu]) => { if (p.tiers[old] == null) p.tiers[old] = p.tiers[nu]; }); });
   const s = settings(); const now = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
   const rates = { version: now, published: now, by: payload.by || s.publisher || "Rate Desk", note: String(payload.note || "").trim(), ping: { server: s.pingServer, topic: s.pingTopic }, products: payload.products };
-  const label = Object.entries(rates.products).map(([k, p]) => `${p.label || k} 680+ ${p.tiers["680+"]}%`).join(", ");
+  const label = Object.entries(rates.products).map(([k, p]) => `${p.label || k} 640+ ${p.tiers["640+"]}%`).join(", ");
   const msg = `Rates ${now.slice(0, 16).replace("T", " ")} UTC — ${label}`;
   const cur = await getFile("rates/rates.json"); const r1 = await putFile("rates/rates.json", JSON.stringify(rates, null, 2) + "\n", msg, cur.sha);
   const hist = await getFile("rates/history.json"); let list = []; try { list = hist.text ? JSON.parse(hist.text) : []; } catch (x) { list = []; }
