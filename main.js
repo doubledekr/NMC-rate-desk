@@ -6,6 +6,9 @@ const { app, BrowserWindow, ipcMain, shell, safeStorage, Menu } = require("elect
 const fs = require("fs"), path = require("path");
 
 const REPO = { owner: "doubledekr", repo: "nmc-rate-desk", branch: "main" };
+/* The shape of rates.json is a contract with the NMC Toolkit — see CONTRACT.md. Bump RATES_FORMAT only for a change the toolkit
+   can't read (a renamed or removed field); adding fields or products never needs a bump. Toolkits ignore a format newer than they know. */
+const RATES_FORMAT = 2;
 const RELEASES_URL = `https://github.com/${REPO.owner}/${REPO.repo}/releases/latest`;
 const DATA = () => { const d = app.getPath("userData"); fs.mkdirSync(d, { recursive: true }); return d; };
 const SETTINGS_FILE = () => path.join(DATA(), "rate-desk-settings.json");
@@ -54,7 +57,7 @@ ipcMain.handle("github:publish", async (e, payload) => {
   Object.values(payload.products || {}).forEach(p => { if (!p || !p.tiers || p.tiers["640+"] == null) return;
     Object.entries(LEGACY_FROM).forEach(([old, nu]) => { if (p.tiers[old] == null) p.tiers[old] = p.tiers[nu]; }); });
   const s = settings(); const now = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
-  const rates = { version: now, published: now, by: payload.by || s.publisher || "Rate Desk", note: String(payload.note || "").trim(), ping: { server: s.pingServer, topic: s.pingTopic }, products: payload.products };
+  const rates = { format: RATES_FORMAT, version: now, published: now, by: payload.by || s.publisher || "Rate Desk", note: String(payload.note || "").trim(), ping: { server: s.pingServer, topic: s.pingTopic }, products: payload.products };
   const label = Object.entries(rates.products).map(([k, p]) => `${p.label || k} 640+ ${p.tiers["640+"]}%`).join(", ");
   const msg = `Rates ${now.slice(0, 16).replace("T", " ")} UTC — ${label}`;
   const cur = await getFile("rates/rates.json"); const r1 = await putFile("rates/rates.json", JSON.stringify(rates, null, 2) + "\n", msg, cur.sha);

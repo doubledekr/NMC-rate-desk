@@ -1,7 +1,7 @@
 {
   "name": "nmc-rate-desk",
   "productName": "NMC Rate Desk",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Neighborhood Mortgage Company rate desk — publishes par rates by credit tier for the NMC Toolkit",
   "author": "Neighborhood Mortgage Company",
   "license": "UNLICENSED",
