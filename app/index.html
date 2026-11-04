@@ -48,29 +48,113 @@ input.rate.bad{border-color:var(--bad);background:#FFF4F3}
 .toast.on{opacity:1}
 .hist tr:hover{background:var(--cream)}
 .kbd{font-family:Consolas,monospace;font-size:12px;background:var(--cream);padding:1px 5px;border-radius:4px}
-/* v1.3 market panel */
-.mkt{display:grid;grid-template-columns:1fr 1.35fr;gap:22px}
-.mkt h2{display:flex;align-items:center;gap:10px}
-.mkt h2 .sp{flex:1}
-.lean{display:flex;align-items:center;gap:10px;margin:10px 0 4px;flex-wrap:wrap}
-.lean .badge{font-size:13px;font-weight:700;padding:4px 12px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--muted)}
-.lean .badge.improving{border-color:#BBD6C6;color:var(--good)}.lean .badge.worsening{border-color:#E6C2B9;color:var(--warn)}
-.lean .badge.choppy{border-color:#E8D88A;color:#7A5B00}
-.mline{font-size:13px;color:var(--ink);margin:2px 0}
-.mwarn{font-size:12.5px;color:var(--warn);margin-top:6px;font-weight:600}
-.cal{margin-top:12px}.cal .ev{display:flex;justify-content:space-between;font-size:12.5px;padding:5px 0;border-bottom:1px solid #F0EBE1}
-.cal .when{color:var(--muted);white-space:nowrap;margin-left:10px}
-.heads{max-height:330px;overflow:auto;margin-top:6px;padding-right:4px}
-.head{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:start;padding:8px 0;border-bottom:1px solid #F0EBE1}
+/* ===== v1.4: live strip, alerts, briefs, trends, headlines drawer — with motion ===== */
+:root{--spring:cubic-bezier(.2,.9,.3,1.25);--ease:cubic-bezier(.2,.7,.2,1);--better:#2E6B4F;--worse:#9A4E0E;--neutral:#9AA0AA}
+.panel h2{display:flex;align-items:center;gap:10px}.panel h2 .sp{flex:1}h2 .hint{font-family:var(--sans,"Montserrat",sans-serif);font-size:11.5px}.drawer h2{display:flex;align-items:center;gap:8px}.drawer h2 .sp{flex:1}
+/* live strip */
+.strip{display:flex;align-items:stretch;gap:8px;margin:0 0 14px;overflow-x:auto;padding:2px 2px 6px}
+.chip{flex:1 1 110px;min-width:104px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:9px 12px 8px;position:relative;transition:transform .18s var(--spring),box-shadow .18s;box-shadow:0 1px 2px rgba(52,55,64,.04)}
+.chip:hover{transform:translateY(-2px);box-shadow:0 12px 24px -16px rgba(52,55,64,.4)}
+.chip .k{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
+.chip .v{font-family:var(--serif,Georgia);font-size:19px;line-height:1.25;white-space:nowrap}
+.chip .c{font-size:11.5px;font-weight:700;white-space:nowrap}.chip .c.better{color:var(--better)}.chip .c.worse{color:var(--worse)}.chip .c.flat{color:var(--muted)}
+.chip svg{position:absolute;right:8px;bottom:8px;width:40px;height:16px;opacity:.55}
+.chip.bump{animation:chipbump .5s var(--spring)}
+@keyframes chipbump{0%{transform:scale(1)}35%{transform:scale(1.045)}100%{transform:scale(1)}}
+.chip.ctrl{flex:0 0 128px;display:flex;flex-direction:column;justify-content:center;gap:6px;background:var(--cream-soft,#F7F1E6)}
+.chip.ctrl .hint{font-size:11px;line-height:1.3}
+.spin{display:inline-block}.spinning .spin{animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+/* move alert */
+.alert{display:none;background:#fff;border:1px solid #E8D88A;border-left:4px solid #C89B00;border-radius:12px;padding:12px 14px;margin:0 0 14px;box-shadow:0 14px 30px -20px rgba(122,91,0,.6)}
+.alert.on{display:block;animation:alertin .5s var(--spring)}
+@keyframes alertin{0%{opacity:0;transform:translateY(-10px) scale(.98)}60%{opacity:1;transform:translateY(2px)}100%{transform:none}}
+.alert .big{font-family:var(--serif,Georgia);font-size:18px}
+.alert textarea{width:100%;margin-top:8px;border:1px solid var(--line);border-radius:9px;padding:8px 10px;font:inherit;min-height:54px;resize:vertical}
+/* lean block in the live panel */
+.lean{display:flex;align-items:center;gap:10px;margin:12px 0 4px;flex-wrap:wrap}
+.lean .badge{font-size:13px;font-weight:700;padding:4px 12px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--muted);transition:all .25s var(--spring)}
+.lean .badge.improving{border-color:#BBD6C6;color:var(--better);background:#F3FAF5}.lean .badge.worsening{border-color:#E6C2B9;color:var(--worse);background:#FDF6F2}
+.lean .badge.choppy{border-color:#E8D88A;color:#7A5B00;background:#FFFBEA}
+.lean .badge.pop{animation:chipbump .5s var(--spring)}
+.mline{font-size:13px;color:var(--ink);margin:2px 0}.mwarn{font-size:12.5px;color:var(--worse);margin-top:6px;font-weight:600}
+.cal{margin-top:10px}.cal .ev{display:flex;justify-content:space-between;font-size:12.5px;padding:5px 0;border-bottom:1px solid #F0EBE1}.cal .when{color:var(--muted);white-space:nowrap;margin-left:10px}
+/* briefs */
+.tabs{display:inline-flex;position:relative;background:var(--cream-soft,#F7F1E6);border-radius:999px;padding:3px}
+.tabs button{position:relative;z-index:1;font:inherit;font-size:12px;font-weight:600;border:0;background:transparent;color:var(--muted);padding:6px 14px;border-radius:999px;cursor:pointer;transition:color .2s}
+.tabs button.on{color:var(--brand)}
+.tabs .pill{position:absolute;top:3px;bottom:3px;border-radius:999px;background:#fff;box-shadow:0 2px 8px -3px rgba(52,55,64,.35);transition:left .32s var(--spring),width .32s var(--spring)}
+.brief{margin-top:12px;background:var(--cream-soft,#F7F1E6);border-radius:12px;padding:14px 16px;min-height:120px}
+.brief .t{font-family:var(--serif,Georgia);font-size:17px;margin-bottom:6px}
+.brief .ln{font-size:13.5px;line-height:1.55;animation:lnin .4s var(--ease) both}
+.brief .ln:nth-child(2){animation-delay:.04s}.brief .ln:nth-child(3){animation-delay:.08s}.brief .ln:nth-child(4){animation-delay:.12s}.brief .ln:nth-child(5){animation-delay:.16s}.brief .ln:nth-child(n+6){animation-delay:.2s}
+@keyframes lnin{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:none}}
+.sent{margin-top:10px}.sent .it{font-size:12px;color:var(--muted);padding:3px 0;border-bottom:1px dashed #EDE6D8}.sent .it b{color:var(--ink);font-weight:600}
+.btn.done{background:var(--better)!important;border-color:var(--better)!important;color:#fff!important}
+/* trends */
+.trend-wrap{position:relative;user-select:none;cursor:crosshair;margin-top:8px}
+.trend-wrap svg{display:block;width:100%}
+.trend-wrap .lbl{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:6px 0 0 4px}
+.tt{position:absolute;pointer-events:none;background:var(--ink);color:#fff;border-radius:10px;padding:8px 10px;font-size:12px;line-height:1.45;max-width:300px;opacity:0;transform:translateY(4px);transition:opacity .12s,transform .12s;z-index:5;box-shadow:0 14px 30px -14px rgba(0,0,0,.6)}
+.tt.on{opacity:1;transform:none}.tt b{font-weight:700}.tt .g{color:#A9E6C1}.tt .w{color:#FFC9A8}
+.range{display:inline-flex;gap:4px}.range button{font:inherit;font-size:11.5px;padding:3px 10px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--muted);cursor:pointer;transition:all .15s}
+.range button.on{border-color:var(--brand);color:var(--brand);font-weight:600}
+.sel-card{display:none;margin-top:12px;border:1px solid var(--line);border-left:4px solid var(--brand);border-radius:12px;padding:12px 14px;background:#fff}
+.sel-card.on{display:block;animation:alertin .45s var(--spring)}
+.sel-card .row3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:8px 0}
+.sel-card .read{font-weight:600;font-size:13px;margin:4px 0 8px}
+.sel-card .list{max-height:180px;overflow:auto;font-size:12.5px}
+.sel-card .list div{padding:4px 0;border-bottom:1px solid #F3EEE4}
+.trend-key{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);margin-top:6px}
+.trend-key i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+svg .draw{stroke-dasharray:var(--len);stroke-dashoffset:var(--len);animation:draw 1.1s var(--ease) forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+svg .selrect{transition:opacity .15s}
+/* headlines drawer */
+.drawer{position:fixed;top:0;right:0;bottom:0;width:420px;max-width:92vw;background:#fff;box-shadow:-30px 0 60px -30px rgba(52,55,64,.45);border-left:1px solid var(--line);transform:translateX(104%);transition:transform .42s var(--spring);z-index:40;display:flex;flex-direction:column}
+.drawer.open{transform:none}
+.drawer .dh{padding:16px 18px 10px;border-bottom:1px solid var(--line)}
+.drawer .dh h2{margin:0}
+.drawer .heads{flex:1;overflow:auto;padding:4px 18px 18px}
+.scrim{position:fixed;inset:0;background:rgba(52,55,64,.18);opacity:0;pointer-events:none;transition:opacity .3s;z-index:39}.scrim.on{opacity:1;pointer-events:auto}
+.tabhandle{position:fixed;right:0;top:46%;z-index:38;background:var(--brand);color:#fff;border:0;border-radius:12px 0 0 12px;padding:14px 8px;writing-mode:vertical-rl;font:600 12px var(--sans,"Montserrat",sans-serif);letter-spacing:.08em;cursor:pointer;box-shadow:-8px 10px 24px -12px rgba(107,31,21,.7);transition:padding .2s var(--spring)}
+.tabhandle:hover{padding-right:12px}
+.tabhandle .nb{display:inline-block;background:#fff;color:var(--brand);border-radius:999px;padding:2px 5px;margin-top:6px;font-size:10px;writing-mode:horizontal-tb}
+.head{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:start;padding:9px 0;border-bottom:1px solid #F0EBE1;animation:lnin .35s var(--ease) both}
 .head a{color:var(--ink);text-decoration:none;font-size:13px;line-height:1.35}.head a:hover{text-decoration:underline}
-.head .meta{font-size:11px;color:var(--muted);margin-top:2px}
-.head .why{font-style:italic}
+.head .meta{font-size:11px;color:var(--muted);margin-top:2px}.head .why{font-style:italic}
 .head .tag-good,.head .tag-warn,.head .tag-flat{white-space:nowrap;font-size:10.5px;padding:1px 8px}
-.filt{display:flex;gap:6px}.filt button{font:inherit;font-size:11.5px;padding:3px 10px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--muted);cursor:pointer}
+.head.flash{background:#FFFBEA}
+.filt{display:flex;gap:6px;margin-top:8px}.filt button{font:inherit;font-size:11.5px;padding:3px 10px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--muted);cursor:pointer;transition:all .15s}
 .filt button.on{border-color:var(--brand);color:var(--brand);font-weight:600}
 .pace{white-space:nowrap}.pace.stale{color:#FFD9A8;font-weight:600}
 .notehead{display:flex;align-items:center;justify-content:space-between;gap:10px}.notehead .btn{white-space:nowrap;flex:none}
-.chart10{margin-top:14px}
+.btn{transition:transform .12s var(--spring),box-shadow .15s,background .2s}.btn:active{transform:scale(.96)}
+.check{display:inline-block;margin-left:6px;animation:chipbump .5s var(--spring)}
+/* inbox */
+.bellwrap{position:relative}
+#bell{position:relative;display:inline-flex;align-items:center;gap:6px}
+#bell .bi{font-size:14px;line-height:1}
+#bellCount{display:none;min-width:18px;padding:0 5px;height:18px;line-height:18px;border-radius:999px;background:#fff;color:var(--brand);font-size:11px;font-weight:800;text-align:center}
+#bell.lit{animation:bellglow 1.6s ease-in-out infinite;border-color:#FFE29A!important}
+#bell.lit .bi{animation:ring 2.4s ease-in-out infinite;display:inline-block;transform-origin:50% 10%}
+#bell.lit #bellCount{animation:blink 1.6s ease-in-out infinite}
+@keyframes bellglow{0%,100%{box-shadow:0 0 0 0 rgba(255,226,154,0)}50%{box-shadow:0 0 0 6px rgba(255,226,154,.35),0 0 18px rgba(255,226,154,.6)}}
+@keyframes ring{0%,60%,100%{transform:rotate(0)}65%{transform:rotate(14deg)}72%{transform:rotate(-12deg)}79%{transform:rotate(8deg)}86%{transform:rotate(-4deg)}}
+@keyframes blink{0%,100%{background:#fff;color:var(--brand)}50%{background:#FFE29A;color:#6B1F15}}
+.inbox{position:fixed;right:24px;top:80px;width:400px;max-width:90vw;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 30px 60px -24px rgba(52,55,64,.55);z-index:45;color:var(--ink);opacity:0;transform:translateY(-6px) scale(.98);transform-origin:top right;pointer-events:none;transition:opacity .18s,transform .28s var(--spring)}
+.inbox.open{opacity:1;transform:none;pointer-events:auto}
+.inbox .ih{padding:12px 14px;border-bottom:1px solid var(--line);font-family:var(--serif,Georgia);font-size:16px}
+.inbox .il{max-height:420px;overflow:auto;padding:6px 10px 10px}
+.ib{display:grid;grid-template-columns:28px 1fr auto;gap:10px;align-items:start;padding:10px 6px;border-bottom:1px solid #F3EEE4;animation:lnin .32s var(--ease) both;transition:opacity .25s,transform .25s}
+.ib.out{opacity:0;transform:translateX(30px)}
+.ib .ico{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-weight:800;font-size:13px;background:var(--cream-soft,#F7F1E6);color:var(--muted)}
+.ib.k-approve .ico{background:#FFF3C4;color:#7A5B00}.ib.k-brief .ico{background:#EEF4FB;color:#2B5C8A}.ib.k-rates .ico{background:#FDECEA;color:var(--brand)}.ib.k-event .ico{background:#F1EEF8;color:#5B4B8A}.ib.k-news .ico{background:#E9F4EE;color:var(--better)}
+.ib.unread b::after{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--brand);margin-left:6px;vertical-align:1px}
+.ib .acts{display:flex;gap:4px}
+.inbox .empty{text-align:center;padding:26px 10px;color:var(--muted)}
+.brief.glow{animation:glow 1.2s ease-out}
+@keyframes glow{0%{box-shadow:0 0 0 0 rgba(165,50,34,.35)}100%{box-shadow:0 0 0 14px rgba(165,50,34,0)}}
+@media (prefers-reduced-motion: reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
@@ -81,12 +165,22 @@ input.rate.bad{border-color:var(--bad);background:#FFF4F3}
     <div><h1>NMC Rate Desk</h1><div class="tag">Publishes VA par rates by credit tier to every NMC Toolkit</div></div>
     <span class="sp"></span>
     <div class="status"><span><span class="dot" id="dotGh"></span><span id="ghText">GitHub: not connected</span></span><span><span class="dot" id="dotPing"></span><span id="pingText">Relay</span></span><span id="pace" class="pace"></span><span id="ver"></span></div>
+    <span class="bellwrap"><button class="btn ghost small" id="bell" onclick="toggleInbox()" aria-label="Inbox"><span class="bi">🔔</span>Inbox<span id="bellCount">0</span></button></span>
     <button class="btn ghost small" onclick="openSettings()">Settings</button>
   </div>
 
   <div id="firstRun" class="banner info" style="display:none"><b>First run:</b> paste the publishing key in Settings to connect this app to GitHub. You only do this once.</div>
-  <div id="firstToday" class="banner info" style="display:none"><b>No publish yet today.</b> <a href="#" onclick="draftRecap();return false">Draft the morning recap</a> to start the first note.</div>
+  <div id="firstToday" class="banner info" style="display:none"><b>No publish yet today.</b> <a href="#" onclick="useBriefAsNote('morning');return false">Use the morning brief</a> to start the first note.</div>
   <div id="msg"></div>
+
+  <div class="strip" id="strip"><div class="chip"><div class="k">Live market</div><div class="v">Loading…</div></div></div>
+
+  <div class="alert" id="alert">
+    <div class="row" style="justify-content:space-between"><div><div class="big" id="alertBig"></div><div class="hint" id="alertSub"></div></div>
+      <div class="row"><button class="btn ghost small" onclick="dismissMove()">Dismiss</button><button class="btn small" id="alertSend" onclick="sendMove()">Send to bankers</button></div></div>
+    <textarea id="alertText" maxlength="280"></textarea>
+    <div class="hint">Goes to every toolkit as a market note. It doesn't change rates or eligibility. Sending or dismissing sets a new baseline for the next alert.</div>
+  </div>
 
   <div class="grid">
     <div class="panel">
@@ -95,7 +189,7 @@ input.rate.bad{border-color:var(--bad);background:#FFF4F3}
         <thead><tr><th>Credit tier</th><th class="num">Live now</th><th class="num">New VA Streamline rate</th></tr></thead>
         <tbody id="tiers"></tbody>
       </table>
-      <div style="margin-top:12px"><div class="notehead"><label class="hint">Note for this publish (optional — shows on the toolkit banner)</label><button class="btn ghost small" onclick="draftRecap()" title="Fill the note with a one-line market recap">Draft morning recap</button></div><input type="text" id="note" placeholder="e.g. MBS rallied after CPI" maxlength="140"></div>
+      <div style="margin-top:12px"><div class="notehead"><label class="hint">Note for this publish (optional — shows on the toolkit banner)</label><button class="btn ghost small" onclick="useBriefAsNote()" title="Fill the note with a one-line version of the current brief">Use brief as note</button></div><input type="text" id="note" placeholder="e.g. MBS rallied after CPI" maxlength="140"></div>
       <div class="row" style="margin-top:14px"><button class="btn" id="publishBtn" onclick="confirmPublish()">Publish rates</button><button class="btn ghost" onclick="fillFromLive()">Reset to live</button><span class="hint" id="validMsg"></span></div>
       <div class="hint" style="margin-top:10px">Rates accept <span class="kbd">5.625</span>, <span class="kbd">5.625%</span> or <span class="kbd">5 5/8</span>. Lower credit tiers can't carry a lower rate than the tier above them.</div>
     </div>
@@ -103,40 +197,49 @@ input.rate.bad{border-color:var(--bad);background:#FFF4F3}
       <h2>Live on the toolkits</h2>
       <div id="liveBox" class="hint">Loading…</div>
       <div id="liveTiles" class="tiles"></div>
-      <h2 style="margin-top:18px">640+ tier, last 30 days</h2>
-      <svg id="chart" class="chart" viewBox="0 0 440 160" preserveAspectRatio="none"></svg>
-      <div class="hint" id="chartHint"></div>
-      <h2 class="chart10">10-yr Treasury, same 30 days</h2>
-      <svg id="chart10" class="chart" viewBox="0 0 440 160" preserveAspectRatio="none"></svg>
-      <div class="hint" id="chart10Hint"></div>
+      <div class="lean"><span class="hint">Market lean</span><span id="leanBadge" class="badge">—</span><span class="hint" id="leanStrength"></span><span class="sp" style="flex:1"></span><button class="btn ghost small" id="leanSend" onclick="sendLean()">Send lean to bankers</button></div>
+      <div class="mline" id="leanLine"></div>
+      <div class="mline hint" id="leanTilt"></div>
+      <div class="mwarn" id="leanWarn"></div>
+      <div class="hint" style="margin-top:6px">Describes what the 10-year has done lately — not a forecast. <span id="leanRide"></span></div>
+      <div class="cal"><b style="font-size:12px">Coming up</b><div id="cal"></div></div>
     </div>
   </div>
 
   <div class="panel" style="margin-top:18px">
-    <div class="mkt">
-      <div>
-        <h2>Market<span class="sp"></span><button class="btn ghost small" onclick="loadMarket(true)">Refresh</button></h2>
-        <div id="mktTen" class="tiles" style="grid-template-columns:1fr 1fr"></div>
-        <div class="lean"><span class="hint">Lean</span><span id="leanBadge" class="badge">—</span><span class="hint" id="leanStrength"></span></div>
-        <div class="mline" id="leanLine"></div>
-        <div class="mline hint" id="leanTilt"></div>
-        <div class="mwarn" id="leanWarn"></div>
-        <div class="hint" style="margin-top:8px">The lean describes what the 10-year has done lately. It is not a forecast. Rate desk only — not sent to the toolkits.</div>
-        <div class="cal"><b style="font-size:12px">Coming up</b><div id="cal"></div></div>
-        <div class="hint" id="mktSrc" style="margin-top:8px"></div>
-      </div>
-      <div>
-        <h2>Headlines<span class="sp"></span><span class="filt" id="filt"><button class="on" data-f="all">All</button><button data-f="better">Better</button><button data-f="worse">Worse</button></span></h2>
-        <div class="heads" id="heads"><div class="hint">Loading headlines…</div></div>
-        <div class="hint" style="margin-top:6px">Tags are keyword rules: <span class="tag-good">Better</span> tends to pull rates down, <span class="tag-warn">Worse</span> tends to push them up. Use “+ Note” to add one to this publish.</div>
-      </div>
+    <h2>Briefs<span class="sp"></span><span class="tabs" id="briefTabs"><span class="pill"></span><button data-b="morning">Morning</button><button data-b="midday">Midday</button><button data-b="eod">End of day</button></span></h2>
+    <div class="brief" id="brief"></div>
+    <div class="row" style="margin-top:10px"><button class="btn small" id="briefSend" onclick="sendBrief()">Send to bankers</button><button class="btn ghost small" onclick="useBriefAsNote()">Use as rate note</button><button class="btn ghost small" id="briefCopy" onclick="copyBrief()">Copy</button><span class="hint" id="briefHint"></span></div>
+    <div class="sent" id="sent"></div>
+  </div>
+
+  <div class="panel" style="margin-top:18px">
+    <h2>Trends<span class="sp"></span><span class="hint" id="trendHint">Hover to line up both charts · drag across days to compare</span><span class="range" id="range"><button data-d="14">2W</button><button data-d="30" class="on">30D</button><button data-d="90">90D</button></span></h2>
+    <div class="trend-wrap" id="trend">
+      <div class="lbl">Your 640+ rate (VA Streamline)</div><svg id="tRate" height="150"></svg>
+      <div class="lbl">Events &amp; headlines</div><svg id="tLane" height="34"></svg>
+      <div class="lbl">10-yr Treasury yield</div><svg id="tTen" height="150"></svg>
+      <div class="tt" id="tt"></div>
     </div>
+    <div class="trend-key"><span><i style="background:#A53222"></i>Your 640+ rate</span><span><i style="background:#26262E"></i>10-yr yield (daily close, live today)</span><span><i style="background:#2E6B4F"></i>Better-for-rates news</span><span><i style="background:#9A4E0E"></i>Worse-for-rates news</span><span><i style="background:#5C616E;border-radius:2px"></i>Fed / CPI / jobs day</span></div>
+    <div class="sel-card" id="selCard"></div>
   </div>
 
   <div class="panel" style="margin-top:18px">
     <h2>History</h2>
     <table class="hist"><thead><tr><th>Published</th><th>By</th><th class="num">640+</th><th class="num">620–639</th><th class="num">580–619</th><th class="num">&lt;580</th><th>Note</th></tr></thead><tbody id="hist"></tbody></table>
   </div>
+</div>
+
+<button class="tabhandle" id="tabHandle" onclick="toggleDrawer(true)">HEADLINES <span class="nb" id="headCount">0</span></button>
+<div class="scrim" id="scrim" onclick="toggleDrawer(false)"></div>
+<div class="drawer" id="drawer" role="complementary" aria-label="Headlines">
+  <div class="dh">
+    <h2>Headlines<span class="sp"></span><button class="btn ghost small" onclick="loadMarket(true)">Refresh</button><button class="btn ghost small" onclick="toggleDrawer(false)" aria-label="Close">Close</button></h2>
+    <div class="filt" id="filt"><button class="on" data-f="all">All</button><button data-f="better">Better</button><button data-f="worse">Worse</button><button data-f="neutral">Neutral</button></div>
+    <div class="hint" style="margin-top:8px">Keyword tags: <span class="tag-good">Better</span> tends to pull rates down, <span class="tag-warn">Worse</span> tends to push them up. “+ Note” adds one to this publish.</div>
+  </div>
+  <div class="heads" id="heads"><div class="hint">Loading headlines…</div></div>
 </div>
 
 <div class="modal" id="confirm"><div class="box">
@@ -153,12 +256,15 @@ input.rate.bad{border-color:var(--bad);background:#FFF4F3}
   <div class="row"><input type="text" id="tokenIn" placeholder="github_pat_…" style="flex:1"><button class="btn small" onclick="saveToken()">Save &amp; verify</button><button class="btn ghost small" onclick="clearToken()">Remove</button></div>
   <div id="tokenMsg" class="hint" style="margin:6px 0 14px"></div>
   <label class="hint">Publisher name (shown on the toolkit banner and in history)</label><input type="text" id="pubName" style="margin-bottom:12px">
+  <label class="hint">10-yr move alert (bps away from what bankers last heard)</label>
+  <div class="row" style="margin-bottom:12px"><input type="text" id="moveBps" style="width:80px" placeholder="5"><label class="hint"><input type="checkbox" id="sendLeanChk"> Send the market lean and 10-yr with every rate publish</label></div>
   <label class="hint">Instant-ping relay</label>
   <div class="row"><input type="text" id="pingServer" style="width:200px"><input type="text" id="pingTopic" style="flex:1"><button class="btn ghost small" onclick="pingTest()">Send test ping</button></div>
   <div class="hint" style="margin:6px 0 14px">The topic name is generated once and written into rates.json, so toolkits find it on their own. Change it only if you also want every toolkit to re-read it on its next poll.</div>
   <div class="row" style="justify-content:flex-end"><button class="btn ghost" onclick="closeSettings()">Close</button><button class="btn" onclick="saveSettings()">Save</button></div>
 </div></div>
 
+<div class="inbox" id="inbox"><div class="ih">Waiting on you</div><div class="il" id="inboxList"></div></div>
 <div class="toast" id="toast"></div>
 
 <script src="theme/nmc-motion.js"></script>
@@ -171,7 +277,7 @@ const LEGACY={"640+":"680+","580-619":"600-619"};
 const tv=(t,k)=>!t?null:(t[k]!=null?t[k]:(LEGACY[k]&&t[LEGACY[k]]!=null?t[LEGACY[k]]:null));
 const vaTiers=h=>{ const t=h&&h.products&&h.products.va_irrrl?h.products.va_irrrl.tiers:null; if(!t) return {}; const o={}; TIERS.forEach(k=>{ o[k]=tv(t,k); }); return o; };
 const $=id=>document.getElementById(id);
-let live=null, history=[], settings={}, market=null, headFilter="all";
+let live=null, history=[], settings={};
 const pct=v=>v==null||isNaN(v)?"—":(+v).toFixed(3).replace(/0$/,"")+"%";
 function parseRate(s){ s=String(s||"").trim().replace(/%$/,"").trim(); if(!s) return null; const m=s.match(/^(\d+)\s+(\d+)\/(\d+)$/); if(m) return +m[1]+(+m[2])/(+m[3]); const f=s.match(/^(\d+)\/(\d+)$/); if(f) return (+f[1])/(+f[2]); const n=parseFloat(s); return isNaN(n)?null:n; }
 function toast(t){ const el=$("toast"); el.textContent=t; el.classList.add("on"); clearTimeout(toast.t); toast.t=setTimeout(()=>el.classList.remove("on"),3500); }
@@ -194,30 +300,226 @@ function renderLive(){ const b=$("liveBox"); if(!live){ b.innerHTML="Nothing pub
 function renderHistory(){ $("hist").innerHTML=history.length?history.slice(0,40).map((h,i)=>{ const t=vaTiers(h); const p=vaTiers(history[i+1]);
   return `<tr><td>${fmtWhen(h.published)}</td><td>${esc(h.by||"")}</td>${TIERS.map(k=>`<td class="num">${pct(t[k])}${delta(t[k],p[k])}</td>`).join("")}<td class="hint">${esc(h.note||"")}</td></tr>`; }).join(""):`<tr><td colspan="7" class="hint">No publishes yet.</td></tr>`;
   renderChart(); }
-function drawLine(svgId, pts, fmt, color, t0, t1){ const svg=$(svgId); t1=Math.max(t1, ...pts.map(p=>p.t)); const dense=pts.length>14;
-  if(pts.length<2){ svg.innerHTML=""; return false; }
-  const W=440,H=160,L=44,R=10,T=12,B=24; let lo=Math.min(...pts.map(p=>p.v)),hi=Math.max(...pts.map(p=>p.v)); if(hi-lo<0.25){ const m=(hi+lo)/2; lo=m-0.125; hi=m+0.125; }
-  const X=t=>L+(t-t0)/Math.max(1,t1-t0)*(W-L-R), Y=v=>T+(hi-v)/(hi-lo)*(H-T-B);
-  const d=pts.map((p,i)=>(i?"L":"M")+X(p.t).toFixed(1)+" "+Y(p.v).toFixed(1)).join(" ");
-  const ticks=[lo,(lo+hi)/2,hi]; svg.innerHTML=ticks.map(v=>`<line x1="${L}" x2="${W-R}" y1="${Y(v)}" y2="${Y(v)}" stroke="#EFEAE0"/><text x="${L-6}" y="${Y(v)+4}" font-size="10" text-anchor="end" fill="#5C616E">${fmt(v)}</text>`).join("")
-    +`<path d="${d}" fill="none" stroke="${color}" stroke-width="2" vector-effect="non-scaling-stroke"/>`+pts.map(p=>`<circle cx="${X(p.t)}" cy="${Y(p.v)}" r="${dense?2.5:4}" fill="${color}"${dense?"":` stroke="#fff" stroke-width="2"`}><title>${p.label} — ${fmt(p.v)}</title></circle>`).join("")
-    +`<text x="${L}" y="${H-6}" font-size="10" fill="#5C616E">${new Date(t0).toLocaleDateString("en-US",{month:"short",day:"numeric"})}</text><text x="${W-R}" y="${H-6}" font-size="10" text-anchor="end" fill="#5C616E">${new Date(t1).toLocaleDateString("en-US",{month:"short",day:"numeric"})}</text>`;
-  if(window.NMC) NMC.charts(svg.parentNode); return true; }
-const f3=v=>v.toFixed(3).replace(/0$/,"")+"%", f2=v=>v.toFixed(2)+"%";
-function renderChart(){ const lastTen=(market&&market.series||[]).slice(-1)[0]; const t1=Math.max(Date.now(), lastTen?Date.parse(lastTen.date+"T21:00:00Z"):0), t0=t1-30*86400000;
-  const pts=history.filter(h=>Date.parse(h.published)>t0&&h.products&&h.products.va_irrrl).map(h=>({t:Date.parse(h.published),v:vaTiers(h)["640+"],label:fmtWhen(h.published)})).filter(p=>p.v!=null).sort((a,b)=>a.t-b.t);
-  drawLine("chart", pts, f3, "#A53222", t0, t1);
-  $("chartHint").textContent=pts.length>=2?`${pts.length} publishes · low ${pct(Math.min(...pts.map(p=>p.v)))} · high ${pct(Math.max(...pts.map(p=>p.v)))}`:(pts.length?"One publish so far — the line starts with the next one.":"");
-  const ten=(market&&market.series||[]).map(p=>({t:Date.parse(p.date+"T21:00:00Z"),v:p.y,label:new Date(p.date+"T12:00:00Z").toLocaleDateString("en-US",{month:"short",day:"numeric"})+" close"})).filter(p=>p.t>t0);
-  const ok=drawLine("chart10", ten, f2, "#26262E", t0, t1);
-  $("chart10Hint").textContent=ok?`Daily close · low ${f2(Math.min(...ten.map(p=>p.v)))} · high ${f2(Math.max(...ten.map(p=>p.v)))} · lower yield usually means better rates`:(market?"10-year data unavailable right now.":"Loading 10-year data…"); }
+/* ===================== v1.4: live strip, move alerts, briefs, trends, headlines drawer ===================== */
+const MK=window.NMCMarket, DAY=86400000;
+let market=null, quotes=null, marketNotes=[], headFilter="all", briefKind=null, trendDays=30, sel=null, shownMoveKey=null, curMove=null, lastQuoteAt=0;
+const Q=k=>quotes&&quotes.quotes?quotes.quotes[k]:null;
+const reduced=()=>window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
+function curLean(){ const s=MK.withLive(market&&market.series||[], Q("ten"), Date.now()); return MK.lean(s, market&&market.headlines||[], market&&market.events||[], Date.now()); }
+function marketPayload(){ if(settings.sendLean===false) return undefined; const ln=curLean(), ten=Q("ten"), s=market&&market.series||[], last=s[s.length-1];
+  const tenYear=ten?{ y:+ten.price.toFixed(3), dayBps: ten.prevClose!=null?Math.round((ten.price-ten.prevClose)*100):null, asOf:new Date(ten.time||Date.now()).toISOString(), live:true }:last?{ y:last.y, dayBps:null, asOf:last.date, live:false }:null;
+  return { lean: ln.state==="unknown"?null:{ state:ln.state, label:ln.label, line:ln.line }, tenYear }; }
+
+/* ---------- data loading ---------- */
+async function loadMarket(force){ try{ market=await rateDesk.market(force); }catch(e){ market=market||{errors:[String(e.message||e)]}; } renderMarket(); if(force) toast("Market data refreshed"); }
+async function loadQuotes(force){ const c=$("ctrlChip"); if(c) c.classList.add("spinning");
+  try{ const q=await rateDesk.quotes(force); const prev=quotes; quotes=q; lastQuoteAt=Date.now(); renderStrip(prev); checkMove(); renderLeanBlock(); renderBrief(); renderTrends(); }
+  catch(e){ /* keep last quotes */ }
+  if(c) setTimeout(()=>c.classList.remove("spinning"),300); }
+async function loadNotes(){ try{ marketNotes=await rateDesk.marketHistory()||[]; }catch(e){ marketNotes=[]; } renderSent(); }
+
+/* ---------- live strip ---------- */
+function spark(points){ const p=(points||[]).filter(x=>x&&x.v!=null); if(p.length<3) return ""; const lo=Math.min(...p.map(x=>x.v)), hi=Math.max(...p.map(x=>x.v)), r=hi-lo||1;
+  const d=p.map((x,i)=>(i?"L":"M")+(i/(p.length-1)*46).toFixed(1)+" "+(16-(x.v-lo)/r*14).toFixed(1)).join(" "); return `<svg viewBox="0 0 46 18"><path d="${d}" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>`; }
+function renderStrip(prev){ const el=$("strip"); const any=MK.METRICS.some(m=>Q(m.key));
+  const chips=MK.METRICS.map(m=>{ const q=Q(m.key); const chg=q?MK.metricChange(m,q):null; const tone=MK.metricTone(m,chg);
+    return `<div class="chip" data-k="${m.key}" title="${esc(m.label)}${q&&q.low!=null?` · today ${MK.fmtMetric(m,q.low)}–${MK.fmtMetric(m,q.high)}`:""}"><div class="k">${esc(m.label)}</div><div class="v" data-tick="q.${m.key}">${q?MK.fmtMetric(m,q.price):"—"}</div><div class="c ${tone}">${chg?esc(chg.text):"&nbsp;"}</div><span style="color:${tone==="better"?"#2E6B4F":tone==="worse"?"#9A4E0E":"#9AA0AA"}">${q?spark(q.points):""}</span></div>`; }).join("");
+  const mh=MK.isMarketHours(Date.now());
+  el.innerHTML=chips+`<div class="chip ctrl" id="ctrlChip"><button class="btn small" onclick="loadQuotes(true)"><span class="spin">↻</span> Refresh</button><div class="hint">${any?`Updated ${MK.etTime(lastQuoteAt)}`:"Live quotes unavailable — using daily data"}<br>${mh?"Auto every 5 min":"Market closed · every 30 min"}</div></div>`;
+  if(prev&&prev.quotes) MK.METRICS.forEach(m=>{ const a=prev.quotes[m.key], b=Q(m.key); if(a&&b&&a.price!==b.price){ const c=el.querySelector(`.chip[data-k="${m.key}"]`); if(c&&!reduced()){ c.classList.add("bump"); setTimeout(()=>c.classList.remove("bump"),520); } } }); }
+
+/* ---------- 10-yr move alerts (Kobe approves every note) ---------- */
+function moveRef(){ const r=settings.moveRef, ten=Q("ten"); if(r&&r.at&&MK.etDay(Date.parse(r.at))===MK.etDay(Date.now())) return r; return ten&&ten.prevClose!=null?{ y:ten.prevClose, at:null, why:"close" }:null; }
+function checkMove(){ const ten=Q("ten"), ref=moveRef(); const th=+settings.moveBps||5; const mv=MK.moveCheck(ten, ref, th); curMove=mv;
+  if(!mv||!mv.crossed){ return; }
+  const key=ref.y+"|"+mv.dir+"|"+Math.floor(Math.abs(mv.bps)/th); if(key===shownMoveKey) { $("alertBig").textContent=`10-yr ${mv.dir} ${Math.abs(mv.bps)} bps — now ${mv.to.toFixed(2)}%`; return; }
+  shownMoveKey=key; const a=$("alert"); $("alertBig").textContent=`10-yr ${mv.dir} ${Math.abs(mv.bps)} bps — now ${mv.to.toFixed(2)}%`;
+  $("alertSub").textContent=ref.why==="close"?`vs yesterday's close of ${ref.y.toFixed(2)}% · mortgage rates haven't been republished`:`vs ${ref.y.toFixed(2)}% when bankers last heard (${MK.etTime(Date.parse(ref.at))})`;
+  $("alertText").value=MK.moveNote(mv); a.classList.remove("on"); void a.offsetWidth; a.classList.add("on");
+  try{ if(MK.isMarketHours(Date.now())) new Notification("NMC Rate Desk — 10-yr "+mv.dir+" "+Math.abs(mv.bps)+" bps", { body:"Review and send a market note to bankers.", silent:false }); }catch(e){} }
+async function sendMove(){ const btn=$("alertSend"), txt=$("alertText").value.trim(); if(!txt){ toast("Write the note first"); return; } const ten=Q("ten"); btn.disabled=true; btn.textContent="Sending…";
+  try{ await rateDesk.marketNote({ kind:"move", title:"10-yr move", text:txt, by:settings.publisher, tenYear: ten?{ y:+ten.price.toFixed(3), bps:curMove?curMove.bps:null, since:(moveRef()||{}).at||"close" }:null, lean: marketPayload()&&marketPayload().lean });
+    await rebase(); doneBtn(btn,"Sent"); setTimeout(()=>$("alert").classList.remove("on"),700); toast("Market note sent to every toolkit"); loadNotes(); }
+  catch(e){ msg("bad","<b>Couldn't send:</b> "+esc(e.message||e)); btn.textContent="Send to bankers"; } btn.disabled=false; }
+async function rebase(){ const ten=Q("ten"); if(!ten) return; settings=await rateDesk.saveSettings({ moveRef:{ y:+ten.price.toFixed(3), at:new Date().toISOString(), why:"note" } }); shownMoveKey=null; }
+async function dismissMove(){ await rebase(); $("alert").classList.remove("on"); toast("Dismissed — next alert counts from "+(Q("ten")?Q("ten").price.toFixed(2)+"%":"now")); }
+function doneBtn(btn,label){ const h=btn.dataset.h||btn.textContent; btn.dataset.h=h; btn.classList.add("done"); btn.innerHTML=`${esc(label)}<span class="check">✓</span>`; setTimeout(()=>{ btn.classList.remove("done"); btn.textContent=h; },1400); }
+
+/* ---------- lean block + calendar ---------- */
+let lastLeanState=null;
+function renderLeanBlock(){ if(!market) return; const ln=curLean(); const b=$("leanBadge"); b.textContent=ln.label; b.className="badge "+ln.state;
+  if(lastLeanState&&lastLeanState!==ln.state&&!reduced()){ b.classList.add("pop"); setTimeout(()=>b.classList.remove("pop"),520); } lastLeanState=ln.state;
+  $("leanStrength").textContent=ln.strength==="strong"?"strong":ln.strength==="mild"?"mild":ln.strength==="headlines"?"from headlines only":"";
+  $("leanLine").textContent=ln.line+(Q("ten")?" (incl. today's live 10-yr)":""); $("leanTilt").textContent=ln.tilt; $("leanWarn").textContent=ln.warn;
+  $("leanRide").textContent=settings.sendLean===false?"Not sent with rate publishes (Settings).":"Sent to the toolkits with every rate publish.";
+  const ev=MK.upcoming(market.events||[], Date.now(), 45).slice(0,5);
+  $("cal").innerHTML=ev.length?ev.map(e=>`<div class="ev"><span>${esc(e.name)}</span><span class="when">${esc(MK.whenLabel(e.at, Date.now()))}</span></div>`).join(""):`<div class="hint">No major releases scheduled in the next 45 days.</div>`; }
+async function sendLean(){ const ln=curLean(); if(ln.state==="unknown"){ toast("Not enough data for a lean yet"); return; } const btn=$("leanSend"); btn.disabled=true;
+  try{ await rateDesk.marketNote({ kind:"lean", title:"Market lean", text:`Market lean: ${ln.label}. ${ln.line}.${ln.warn?" "+ln.warn+".":""}`, by:settings.publisher, lean:{ state:ln.state, label:ln.label, line:ln.line }, tenYear: marketPayload()&&marketPayload().tenYear });
+    doneBtn(btn,"Sent"); toast("Lean sent to every toolkit"); loadNotes(); } catch(e){ msg("bad","<b>Couldn't send:</b> "+esc(e.message||e)); } btn.disabled=false; }
+
+/* ---------- briefs ---------- */
+function liveMap(){ const o={}; MK.METRICS.forEach(m=>{ const q=Q(m.key); if(q) o[m.key]=q; }); return o; }
+function curBrief(kind){ return MK.brief(kind||briefKind||MK.briefFor(Date.now()), { series:market&&market.series||[], live:liveMap(), headlines:market&&market.headlines||[], events:market&&market.events||[], history, now:Date.now() }); }
+function renderBrief(){ if(!market) return; if(!briefKind) briefKind=MK.briefFor(Date.now()); const b=curBrief();
+  $("brief").innerHTML=`<div class="t">${esc(b.title)}</div>`+b.lines.map(l=>`<div class="ln">${esc(l)}</div>`).join("");
+  document.querySelectorAll("#briefTabs button").forEach(x=>x.classList.toggle("on",x.dataset.b===briefKind)); movePill();
+  const sug={morning:"Best sent 8:00–9:30 AM",midday:"Best sent around noon",eod:"Best sent after 4:00 PM"}[briefKind]; $("briefHint").textContent=sug+(MK.briefFor(Date.now())===briefKind?" · this is the one for right now":""); }
+function movePill(){ const on=document.querySelector("#briefTabs button.on"), pill=document.querySelector("#briefTabs .pill"); if(!on||!pill) return; pill.style.left=on.offsetLeft+"px"; pill.style.width=on.offsetWidth+"px"; }
+async function sendBrief(){ const b=curBrief(); const btn=$("briefSend"); let text=b.lines.map(l=>l.replace(/^•\s*/,"")).join(" "); if(text.length>280) text=text.slice(0,279)+"…"; btn.disabled=true;
+  try{ await rateDesk.marketNote({ kind:"brief-"+b.kind, title:b.title, text, by:settings.publisher, lean: marketPayload()&&marketPayload().lean, tenYear: marketPayload()&&marketPayload().tenYear }); doneBtn(btn,"Sent"); toast(b.title.split(" · ")[0]+" sent to every toolkit"); loadNotes(); }
+  catch(e){ msg("bad","<b>Couldn't send:</b> "+esc(e.message||e)); } btn.disabled=false; }
+function useBriefAsNote(kind){ if(!market){ toast("Market data is still loading"); return; } const b=curBrief(kind); if(!b.short){ toast("Not enough market data yet"); return; } $("note").value=b.short; $("note").focus(); toast("Added to the rate note — edit before publishing"); }
+async function copyBrief(){ try{ await navigator.clipboard.writeText(curBrief().text); if(window.NMC&&NMC.copied) NMC.copied($("briefCopy")); else toast("Copied"); }catch(e){ toast("Couldn't copy"); } }
+function renderSent(){ const items=(marketNotes||[]).slice(0,4); $("sent").innerHTML=items.length?`<div class="hint" style="margin-bottom:4px"><b style="color:var(--ink)">Recently sent to bankers</b></div>`+items.map(n=>`<div class="it"><b>${esc(fmtWhen(n.at))}</b> · ${esc(n.title||n.kind)} — ${esc(n.text.slice(0,110))}${n.text.length>110?"…":""}</div>`).join(""):""; }
+
+/* ---------- headlines drawer ---------- */
+function toggleDrawer(open){ $("drawer").classList.toggle("open",open); $("scrim").classList.toggle("on",open); if(open) renderHeads(); }
+document.addEventListener("keydown",e=>{ if(e.key==="Escape") toggleDrawer(false); });
+function renderHeads(flashTitle){ const all=market&&market.headlines||[]; const hs=all.filter(h=>headFilter==="all"||h.tag===headFilter);
+  const lab={better:["tag-good","Better"],worse:["tag-warn","Worse"],neutral:["tag-flat","Neutral"]};
+  $("heads").innerHTML=hs.length?hs.slice(0,60).map((h,i)=>{ const [c,l]=lab[h.tag]||lab.neutral; const age=h.at?MK.ago(Math.round((Date.now()-Date.parse(h.at))/60000)):"";
+    return `<div class="head${flashTitle&&h.title===flashTitle?" flash":""}" style="animation-delay:${Math.min(i,12)*25}ms"><span class="${c}">${l}</span><div><a href="#" onclick="${h.link?`rateDesk.open(${esc(JSON.stringify(h.link))})`:""};return false">${esc(h.title)}</a><div class="meta">${esc(h.source)}${age?" · "+esc(age):""}${h.why?` · <span class="why">${esc(h.why)}</span>`:""}</div></div><button class="btn ghost small" onclick="addHeadToNote(${i})">+ Note</button></div>`; }).join("")
+    :`<div class="hint" style="padding-top:12px">${all.length?"No headlines match this filter.":"No rate-relevant headlines right now."}</div>`;
+  renderHeads.list=hs; const recent=all.filter(h=>h.at&&Date.parse(h.at)>Date.now()-DAY).length; $("headCount").textContent=recent; }
+function addHeadToNote(i){ const h=(renderHeads.list||[])[i]; if(!h) return; const el=$("note"); const cur=el.value.trim(); let next=cur?cur+" · "+h.title:h.title; if(next.length>140) next=next.slice(0,139)+"…"; el.value=next; toast("Added to the rate note"); }
+function openHeadline(title){ headFilter="all"; document.querySelectorAll("#filt button").forEach(x=>x.classList.toggle("on",x.dataset.f==="all")); toggleDrawer(true); renderHeads(title);
+  setTimeout(()=>{ const f=document.querySelector(".head.flash"); if(f) f.scrollIntoView({block:"center",behavior:reduced()?"auto":"smooth"}); },80); }
+
+/* ---------- trends: rate + events lane + 10-yr, shared time axis, synced hover, drag-to-compare ---------- */
+const TR={ L:56, R:16 };
+function etStart(t){ const k=MK.etDay(t).split("-").map(Number); return MK.etToMs(k[0],k[1],k[2],0,0); }
+function trendData(){ const t1=Date.now()+2*3600000, t0=etStart(Date.now()-trendDays*DAY);
+  const ten=(market&&market.series||[]).map(p=>{ const [y,mo,d]=p.date.split("-").map(Number); return { t:MK.etToMs(y,mo,d,16,0), v:p.y, label:"close" }; });
+  const tq=Q("ten"); if(tq&&tq.points&&tq.points.length){ const lastClose=ten.length?ten[ten.length-1].t:0; tq.points.filter(p=>p.t>lastClose+3600000).forEach(p=>ten.push({ t:p.t, v:p.v, label:"live" })); }
+  const rates=history.filter(h=>h.products&&h.products.va_irrrl).map(h=>({ t:Date.parse(h.published), v:vaTiers(h)["640+"], by:h.by, note:h.note })).filter(p=>p.v!=null).sort((a,b)=>a.t-b.t);
+  const events=(market&&market.events||[]).filter(e=>Date.parse(e.at)<=t1);
+  return { t0, t1, ten, rates, events, headlines:market&&market.headlines||[] }; }
+function scaleY(vals, h, pad, minSpan){ let lo=Math.min(...vals), hi=Math.max(...vals); if(!isFinite(lo)){ lo=0; hi=1; } if(hi-lo<minSpan){ const m=(hi+lo)/2; lo=m-minSpan/2; hi=m+minSpan/2; } const pd=(hi-lo)*0.08; lo-=pd; hi+=pd; return { lo, hi, Y:v=>pad+(hi-v)/(hi-lo)*(h-pad*2) }; }
+const ABBR={"Fed decision":"Fed","CPI":"CPI","Jobs report":"Jobs","PPI":"PPI","JOLTS job openings":"JOLTS","Employment Cost Index":"ECI"};
+function renderTrends(){ if(!market&&!history.length) return; const D=trendData(); const W=Math.max(320,$("trend").clientWidth||900); const X=t=>TR.L+(t-D.t0)/(D.t1-D.t0)*(W-TR.L-TR.R); renderTrends.D=D; renderTrends.X=X; renderTrends.W=W;
+  const inR=p=>p.t>=D.t0&&p.t<=D.t1; const ten=D.ten.filter(inR);
+  const before=D.rates.filter(p=>p.t<D.t0).slice(-1)[0]; const rates=(before?[{...before,t:D.t0,carried:true}]:[]).concat(D.rates.filter(inR));
+  const grid=(svg,h,sc,fmt)=>[sc.lo+(sc.hi-sc.lo)*0.12,(sc.lo+sc.hi)/2,sc.hi-(sc.hi-sc.lo)*0.12].map(v=>`<line x1="${TR.L}" x2="${W-TR.R}" y1="${sc.Y(v)}" y2="${sc.Y(v)}" stroke="#EFEAE0"/><text x="${TR.L-8}" y="${sc.Y(v)+4}" font-size="10.5" text-anchor="end" fill="#5C616E">${fmt(v)}</text>`).join("");
+  const evLines=h=>D.events.filter(e=>{ const t=Date.parse(e.at); return t>=D.t0&&t<=D.t1; }).map(e=>`<line x1="${X(Date.parse(e.at))}" x2="${X(Date.parse(e.at))}" y1="4" y2="${h-4}" stroke="#5C616E" stroke-opacity=".22" stroke-dasharray="2 3"/>`).join("");
+  const days=[]; for(let t=etStart(D.t0+DAY); t<D.t1; t+=DAY) days.push(etStart(t+3600000)); const step=trendDays>45?14:trendDays>20?7:2;
+  const xAxis=h=>days.filter((t,i)=>i%step===0).map(t=>`<text x="${X(t)}" y="${h-3}" font-size="10" text-anchor="middle" fill="#9AA0AA">${new Date(t+12*3600000).toLocaleDateString("en-US",{month:"short",day:"numeric"})}</text>`).join("");
+  /* rate chart: a step line — a rate holds until the next publish */
+  const hR=150, sR=scaleY(rates.map(p=>p.v),hR-14,10,0.25); let dR="";
+  rates.forEach((p,i)=>{ const x=X(p.t).toFixed(1), y=sR.Y(p.v).toFixed(1); dR+=i?` H${x} V${y}`:`M${x} ${y}`; }); if(rates.length) dR+=` H${X(Math.min(Date.now(),D.t1)).toFixed(1)}`;
+  $("tRate").setAttribute("viewBox",`0 0 ${W} ${hR}`); $("tRate").innerHTML=grid(null,hR,sR,v=>v.toFixed(3).replace(/0$/,"")+"%")+evLines(hR)+(rates.length?`<path class="draw" d="${dR}" fill="none" stroke="#A53222" stroke-width="2" stroke-linejoin="round"/>`+rates.filter(p=>!p.carried).map(p=>`<circle cx="${X(p.t)}" cy="${sR.Y(p.v)}" r="3.5" fill="#A53222" stroke="#fff" stroke-width="1.5"/>`).join(""):`<text x="${W/2}" y="${hR/2}" text-anchor="middle" font-size="12" fill="#9AA0AA">No publishes in this range</text>`)+xAxis(hR)+`<g class="xh"></g><g class="sel"></g>`;
+  /* 10-yr chart */
+  const hT=150, sT=scaleY(ten.map(p=>p.v),hT-14,10,0.2); const dT=ten.map((p,i)=>(i?"L":"M")+X(p.t).toFixed(1)+" "+sT.Y(p.v).toFixed(1)).join(" ");
+  $("tTen").setAttribute("viewBox",`0 0 ${W} ${hT}`); $("tTen").innerHTML=grid(null,hT,sT,v=>v.toFixed(2)+"%")+evLines(hT)+(ten.length>1?`<path class="draw" d="${dT}" fill="none" stroke="#26262E" stroke-width="2" stroke-linejoin="round"/>`+ten.filter(p=>p.label==="close").map(p=>`<circle cx="${X(p.t)}" cy="${sT.Y(p.v)}" r="${trendDays>45?1.8:2.6}" fill="#26262E"/>`).join(""):`<text x="${W/2}" y="${hT/2}" text-anchor="middle" font-size="12" fill="#9AA0AA">10-year data unavailable</text>`)+xAxis(hT)+`<g class="xh"></g><g class="sel"></g>`;
+  /* events + headlines lane */
+  const hL=34; const evs=D.events.filter(e=>{ const t=Date.parse(e.at); return t>=D.t0&&t<=D.t1; }); const hs=D.headlines.filter(h=>h.at&&Date.parse(h.at)>=D.t0&&Date.parse(h.at)<=D.t1);
+  $("tLane").setAttribute("viewBox",`0 0 ${W} ${hL}`);
+  $("tLane").innerHTML=`<line x1="${TR.L}" x2="${W-TR.R}" y1="${hL/2}" y2="${hL/2}" stroke="#EFEAE0"/>`
+    +hs.map(h=>{ const y=h.tag==="better"?9:h.tag==="worse"?25:17; const c=h.tag==="better"?"#2E6B4F":h.tag==="worse"?"#9A4E0E":"#B8BDC6"; return `<circle cx="${X(Date.parse(h.at))}" cy="${y}" r="3.2" fill="${c}" fill-opacity=".85"/>`; }).join("")
+    +evs.map(e=>{ const x=X(Date.parse(e.at)), lab=ABBR[e.name]||e.name, w=lab.length*6+10; return `<g><rect x="${x-w/2}" y="${hL/2-8}" width="${w}" height="16" rx="5" fill="#fff" stroke="#5C616E" stroke-opacity=".55"/><text x="${x}" y="${hL/2+4}" text-anchor="middle" font-size="9.5" font-weight="700" fill="#26262E">${lab}</text></g>`; }).join("")+`<g class="xh"></g><g class="sel"></g>`;
+  renderTrends.sR=sR; renderTrends.sT=sT; renderTrends.ten=ten; renderTrends.rates=rates;
+  if(!reduced()) document.querySelectorAll("#trend path.draw").forEach(p=>{ try{ p.style.setProperty("--len",p.getTotalLength()); }catch(e){} }); else document.querySelectorAll("#trend path.draw").forEach(p=>p.classList.remove("draw"));
+  if(sel) drawSel(); }
+const renderChart=()=>renderTrends();
+function nearest(list,t){ let b=null, bd=Infinity; list.forEach(p=>{ const d=Math.abs(p.t-t); if(d<bd){ bd=d; b=p; } }); return b; }
+function rateAt(t){ const r=renderTrends.rates||[]; let v=null; r.forEach(p=>{ if(p.t<=t) v=p; }); return v; }
+function trendX(e){ const svg=$("tRate"), rect=svg.getBoundingClientRect(); return (e.clientX-rect.left)/rect.width*renderTrends.W; }
+function xToT(x){ const D=renderTrends.D, W=renderTrends.W; return D.t0+(x-TR.L)/(W-TR.L-TR.R)*(D.t1-D.t0); }
+function hover(e){ if(!renderTrends.D) return; const x=trendX(e); if(x<TR.L||x>renderTrends.W-TR.R){ unhover(); return; } let t=xToT(x);
+  /* snap the crosshair to the nearest data point when it's close */
+  const near=nearest((renderTrends.ten||[]).concat((renderTrends.rates||[]).filter(p=>!p.carried)), t); const snapPx=14; if(near&&Math.abs(renderTrends.X(near.t)-x)<snapPx) t=near.t;
+  const X=renderTrends.X, xx=X(t); const tp=nearest(renderTrends.ten||[], t), rp=rateAt(t);
+  ["tRate","tLane","tTen"].forEach(id=>{ const g=$(id).querySelector(".xh"); const h=+$(id).getAttribute("height"); let dot="";
+    if(id==="tTen"&&tp) dot=`<circle cx="${X(tp.t)}" cy="${renderTrends.sT.Y(tp.v)}" r="5" fill="#26262E" stroke="#fff" stroke-width="2"/>`;
+    if(id==="tRate"&&rp) dot=`<circle cx="${xx}" cy="${renderTrends.sR.Y(rp.v)}" r="5" fill="#A53222" stroke="#fff" stroke-width="2"/>`;
+    g.innerHTML=`<line x1="${xx}" x2="${xx}" y1="0" y2="${h}" stroke="#A53222" stroke-opacity=".35"/>`+dot; });
+  const day=MK.etDay(t), dEv=(renderTrends.D.events||[]).filter(ev=>MK.etDay(Date.parse(ev.at))===day), dH=(renderTrends.D.headlines||[]).filter(h=>h.at&&MK.etDay(Date.parse(h.at))===day);
+  const ten=renderTrends.ten||[]; const ti=ten.indexOf(tp); const tchg=tp&&ti>0?Math.round((tp.v-ten[ti-1].v)*100):null;
+  const tt=$("tt"); tt.innerHTML=`<b>${new Date(t).toLocaleDateString("en-US",{timeZone:"America/New_York",weekday:"short",month:"short",day:"numeric"})}</b>${tp&&tp.label==="live"?" · "+MK.etTime(tp.t):""}<br>`
+    +(rp?`640+ rate: <b>${pct(rp.v)}</b>${rp.carried?"":rp.t&&MK.etDay(rp.t)===day?" (published "+MK.etTime(rp.t)+")":""}<br>`:"")
+    +(tp?`10-yr: <b>${tp.v.toFixed(2)}%</b>${tchg!=null?` <span class="${tchg<0?"g":tchg>0?"w":""}">${tchg>0?"+":tchg<0?"−":"±"}${Math.abs(tchg)} bps</span>`:""} ${tp.label==="live"?"(live)":"(close)"}<br>`:"")
+    +dEv.map(ev=>`◆ ${esc(ev.name)} ${MK.etTime(Date.parse(ev.at))}`).join("<br>")+(dEv.length?"<br>":"")
+    +dH.slice(0,3).map(h=>`<span class="${h.tag==="better"?"g":h.tag==="worse"?"w":""}">●</span> ${esc(h.title.slice(0,70))}${h.title.length>70?"…":""}`).join("<br>")+(dH.length>3?`<br>+${dH.length-3} more headlines`:"");
+  const wrap=$("trend").getBoundingClientRect(), px=e.clientX-wrap.left; tt.style.left=Math.min(px+14, wrap.width-310)+"px"; tt.style.top=Math.max(0,e.clientY-wrap.top-20)+"px"; tt.classList.add("on"); }
+function unhover(){ document.querySelectorAll("#trend .xh").forEach(g=>g.innerHTML=""); $("tt").classList.remove("on"); }
+/* drag selection snaps to whole days (ET) */
+let drag=null;
+function snapDayT(t,end){ const s=etStart(t+1); return end?Math.min(etStart(t+1)+DAY-1,renderTrends.D.t1):Math.max(s,renderTrends.D.t0); }
+function drawSel(anim){ ["tRate","tLane","tTen"].forEach(id=>{ const g=$(id).querySelector(".sel"); if(!g) return; if(!sel){ g.innerHTML=""; return; } const X=renderTrends.X, h=+$(id).getAttribute("height");
+  g.innerHTML=`<rect class="selrect" x="${X(sel.t0)}" y="0" width="${Math.max(2,X(sel.t1)-X(sel.t0))}" height="${h}" fill="#A53222" fill-opacity=".08" stroke="#A53222" stroke-opacity=".35"/>`; }); }
+$("trend").addEventListener("mousedown",e=>{ if(!renderTrends.D) return; const x=trendX(e); if(x<TR.L) return; drag={ x0:x, t0:xToT(x) }; e.preventDefault(); });
+window.addEventListener("mousemove",e=>{ if(drag){ const t=xToT(trendX(e)); const a=Math.min(drag.t0,t), b=Math.max(drag.t0,t); sel={ t0:snapDayT(a,false), t1:snapDayT(b,true) }; drawSel(); } });
+$("trend").addEventListener("mousemove",hover); $("trend").addEventListener("mouseleave",unhover);
+window.addEventListener("mouseup",e=>{ if(!drag) return; const moved=Math.abs(trendX(e)-drag.x0); drag=null; if(moved<6){ sel=null; drawSel(); $("selCard").classList.remove("on"); return; } showSel(); });
+function showSel(){ if(!sel) return; const D=renderTrends.D; const s=MK.rangeSummary(sel.t0, sel.t1, { ten:D.ten, rates:D.rates, events:D.events, headlines:D.headlines });
+  const f=t=>new Date(t).toLocaleDateString("en-US",{timeZone:"America/New_York",month:"short",day:"numeric"}); const nd=Math.round((sel.t1-sel.t0)/DAY);
+  const stat=(v,k)=>`<div class="stat"><div class="v">${v}</div><div class="k">${k}</div></div>`;
+  const tenTxt=s.tenBps==null?"—":`${s.tenBps>0?"+":s.tenBps<0?"−":"±"}${Math.abs(s.tenBps)} bps`, rateTxt=s.rateChg==null?"—":s.rateChg===0?"No change":`${s.rateChg>0?"+":"−"}${Math.abs(s.rateChg).toFixed(3).replace(/0$/,"")}%`;
+  const list=s.events.map(e=>`<div>◆ <b>${esc(e.name)}</b> · ${esc(MK.whenLabel(e.at, Date.now()))}</div>`).concat(s.headlines.slice(0,30).map(h=>`<div><span class="${h.tag==="better"?"tag-good":h.tag==="worse"?"tag-warn":"tag-flat"}" style="font-size:10px;padding:0 6px">${h.tag==="better"?"Better":h.tag==="worse"?"Worse":"Neutral"}</span> <a href="#" onclick="openHeadline(${esc(JSON.stringify(h.title))});return false" style="color:var(--ink)">${esc(h.title)}</a> <span class="hint">${esc(f(Date.parse(h.at)))}</span></div>`)).join("");
+  const c=$("selCard"); c.innerHTML=`<div class="row" style="justify-content:space-between"><b>${f(sel.t0)} – ${f(sel.t1)} · ${nd} day${nd===1?"":"s"}</b><button class="btn ghost small" onclick="sel=null;drawSel();$('selCard').classList.remove('on')">Clear</button></div>
+    <div class="row3">${stat(tenTxt,`10-yr${s.tenFrom&&s.tenTo?` · ${s.tenFrom.v.toFixed(2)}% → ${s.tenTo.v.toFixed(2)}%`:""}`)}${stat(rateTxt,`Your 640+ rate${s.rateFrom&&s.rateTo?` · ${pct(s.rateFrom.v)} → ${pct(s.rateTo.v)}`:""}`)}${stat(String(s.publishes),`publishes · ${s.events.length} event${s.events.length===1?"":"s"} · ${s.headlines.length} headline${s.headlines.length===1?"":"s"} (${s.better} better / ${s.worse} worse)`)}</div>
+    ${s.read?`<div class="read">${esc(s.read)}</div>`:""}<div class="list">${list||`<div class="hint">No events or saved headlines in this range. Headlines are saved from the day v1.4 was installed onward.</div>`}</div>`;
+  c.classList.remove("on"); void c.offsetWidth; c.classList.add("on"); }
+document.querySelectorAll("#range button").forEach(b=>b.onclick=()=>{ trendDays=+b.dataset.d; document.querySelectorAll("#range button").forEach(x=>x.classList.toggle("on",x===b)); sel=null; $("selCard").classList.remove("on"); renderTrends(); });
+let rsT=null; window.addEventListener("resize",()=>{ clearTimeout(rsT); rsT=setTimeout(()=>{ renderTrends(); movePill(); },120); });
+
+/* ---------- glue ---------- */
+function renderMarket(){ renderLeanBlock(); renderBrief(); renderHeads(); renderTrends(); }
+function renderPace(){ const p=MK.publishPace(history, Date.now()); const el=$("pace"); if(!history.length){ el.textContent=""; return; }
+  el.textContent=`Last publish ${MK.ago(p.ageMin)}${p.streak>1?` · ${p.streak}-day streak`:""}`; el.className="pace"+(p.stale?" stale":""); el.title=p.stale?"More than 3 hours since the last publish during market hours":"";
+  const wd=new Date().toLocaleDateString("en-US",{timeZone:"America/New_York",weekday:"short"}); const fr=$("firstToday"); if(fr) fr.style.display=(p.today===0&&wd!=="Sat"&&wd!=="Sun")?"block":"none"; }
+document.querySelectorAll("#briefTabs button").forEach(b=>b.onclick=()=>{ briefKind=b.dataset.b; renderBrief(); });
+document.querySelectorAll("#filt button").forEach(b=>b.onclick=()=>{ headFilter=b.dataset.f; document.querySelectorAll("#filt button").forEach(x=>x.classList.toggle("on",x===b)); renderHeads(); });
+
+/* ---------- inbox: everything waiting on Kobe, in one place that lights up ---------- */
+const INBOX_SEEN_KEY="nmc-rd-inbox";
+function seenStore(){ try{ const o=JSON.parse(localStorage.getItem(INBOX_SEEN_KEY)||"{}"); return o.day===MK.etDay(Date.now())?o:{ day:MK.etDay(Date.now()), done:{}, read:{}, headSeen:0 }; }catch(e){ return { day:MK.etDay(Date.now()), done:{}, read:{}, headSeen:0 }; } }
+function saveSeen(o){ try{ localStorage.setItem(INBOX_SEEN_KEY, JSON.stringify(o)); }catch(e){} }
+let inboxItems=[], inboxKeysNotified=new Set();
+function sentToday(kindPrefix){ const today=MK.etDay(Date.now()); return (marketNotes||[]).some(n=>n.kind&&n.kind.startsWith(kindPrefix)&&MK.etDay(Date.parse(n.at))===today); }
+function buildInbox(){ const now=Date.now(), p={}; const parts=new Intl.DateTimeFormat("en-US",{timeZone:"America/New_York",hour:"numeric",minute:"numeric",hourCycle:"h23",weekday:"short"}).formatToParts(new Date(now)); parts.forEach(x=>p[x.type]=x.value);
+  const mins=(+p.hour%24)*60+(+p.minute), weekday=p.weekday!=="Sat"&&p.weekday!=="Sun"; const S=seenStore(); const items=[];
+  const add=(key,kind,title,sub,action,label)=>{ if(S.done[key]) return; items.push({ key, kind, title, sub, action, label, unread:!S.read[key] }); };
+  if($("alert").classList.contains("on")&&curMove) add("move:"+shownMoveKey,"approve",`10-yr ${curMove.dir} ${Math.abs(curMove.bps)} bps — note waiting for approval`,"Review the draft and send it to bankers, or dismiss.","scrollToAlert()","Review");
+  if(weekday){
+    if(mins>=480&&mins<=600&&!sentToday("brief-morning")) add("brief:morning","brief","Morning brief is ready","Yesterday vs today, trend and today's releases.","openBrief('morning')","Open");
+    if(mins>=705&&mins<=810&&!sentToday("brief-midday")) add("brief:midday","brief","Midday brief is ready","10-yr on the day, MBS, lean and what's still to come.","openBrief('midday')","Open");
+    if(mins>=960&&mins<=1050&&!sentToday("brief-eod")) add("brief:eod","brief","End-of-day brief is ready","How the day closed and what's on tomorrow.","openBrief('eod')","Open");
+    const pace=MK.publishPace(history, now);
+    if(mins>=570&&pace.today===0) add("pub:none","rates","No rates published yet today","Bankers are still seeing yesterday's rates.","focusRates()","Update rates");
+    else if(pace.stale) add("pub:stale:"+Math.floor(pace.ageMin/60),"rates",`Rates last published ${MK.ago(pace.ageMin)}`,curMove&&Math.abs(curMove.bps)>=3?`10-yr has moved ${curMove.bps>0?"+":"−"}${Math.abs(curMove.bps)} bps since bankers last heard.`:"Worth a fresh look during market hours.","focusRates()","Review rates");
+  }
+  (market&&market.events||[]).forEach(e=>{ const t=Date.parse(e.at), d=t-now; const k="ev:"+e.name+":"+e.at;
+    if(d>0&&d<=60*60000) add(k+":soon","event",`${e.name} in ${Math.max(1,Math.round(d/60000))} min`,"Rates often move right after — be ready to republish.","openBrief(MK.briefFor(Date.now()))","Open brief");
+    else if(d<=0&&d>-45*60000) add(k+":out","event",`${e.name} just came out`,"Check the 10-yr and headlines, then review rates.","toggleDrawer(true)","Headlines"); });
+  const heads=(market&&market.headlines||[]).filter(h=>h.tag!=="neutral"&&h.at&&Date.parse(h.at)>Math.max(now-6*3600000,S.headSeen||0));
+  if(heads.length) add("heads:"+heads[0].title,"news",`${heads.length} new rate-moving headline${heads.length>1?"s":""}`,heads[0].title,"openHeadsFromInbox()","Read");
+  return items; }
+function renderInbox(){ inboxItems=buildInbox(); const n=inboxItems.length, unread=inboxItems.filter(i=>i.unread).length; const b=$("bell"), c=$("bellCount");
+  c.textContent=n; c.style.display=n?"inline-block":"none"; b.classList.toggle("lit",unread>0);
+  const ic={approve:"!",brief:"✎",rates:"%",event:"◆",news:"●"};
+  $("inboxList").innerHTML=n?inboxItems.map((it,i)=>`<div class="ib k-${it.kind}${it.unread?" unread":""}" style="animation-delay:${i*35}ms"><span class="ico">${ic[it.kind]||"•"}</span><div><b>${esc(it.title)}</b><div class="hint">${esc(it.sub)}</div></div><div class="acts"><button class="btn small" onclick="inboxGo(${i})">${esc(it.label)}</button><button class="btn ghost small" title="Done for today" onclick="inboxDone(${i})">✓</button></div></div>`).join("")
+    :`<div class="empty"><div style="font-size:26px">☀</div><b>All caught up</b><div class="hint">Nothing waiting on you right now.</div></div>`;
+  const fresh=inboxItems.filter(i=>i.unread&&!inboxKeysNotified.has(i.key)); fresh.forEach(i=>inboxKeysNotified.add(i.key));
+  if(fresh.length&&rateDesk.attention) rateDesk.attention(n); else if(rateDesk.attention&&!n) rateDesk.attention(0); }
+function toggleInbox(open){ const pop=$("inbox"); const on=open==null?!pop.classList.contains("open"):open;
+  if(on){ const r=$("bell").getBoundingClientRect(); pop.style.top=(r.bottom+10)+"px"; pop.style.right=Math.max(12,window.innerWidth-r.right)+"px"; } pop.classList.toggle("open",on);
+  if(on){ const S=seenStore(); inboxItems.forEach(i=>S.read[i.key]=1); saveSeen(S); setTimeout(()=>{ $("bell").classList.remove("lit"); },300); } }
+document.addEventListener("click",e=>{ const pop=$("inbox"); if(pop.classList.contains("open")&&!pop.contains(e.target)&&!$("bell").contains(e.target)) toggleInbox(false); });
+function inboxGo(i){ const it=inboxItems[i]; if(!it) return; toggleInbox(false); try{ (new Function(it.action))(); }catch(e){} }
+function inboxDone(i){ const it=inboxItems[i]; if(!it) return; const S=seenStore(); S.done[it.key]=1; saveSeen(S); const row=document.querySelectorAll("#inboxList .ib")[i]; if(row&&!reduced()){ row.classList.add("out"); setTimeout(renderInbox,260); } else renderInbox(); }
+function scrollToAlert(){ $("alert").scrollIntoView({block:"center",behavior:reduced()?"auto":"smooth"}); $("alertText").focus(); }
+function openBrief(k){ briefKind=k; renderBrief(); const el=$("brief"); el.scrollIntoView({block:"center",behavior:reduced()?"auto":"smooth"}); el.classList.remove("glow"); void el.offsetWidth; el.classList.add("glow"); }
+function focusRates(){ const el=document.querySelector('input.rate'); if(el){ el.scrollIntoView({block:"center",behavior:reduced()?"auto":"smooth"}); el.focus(); el.select(); } }
+function openHeadsFromInbox(){ const S=seenStore(); S.headSeen=Date.now(); S.done["heads:"+((market&&market.headlines||[]).find(h=>h.tag!=="neutral")||{}).title]=1; saveSeen(S); toggleDrawer(true); renderInbox(); }
+
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
 async function refresh(){ const has=await rateDesk.hasToken(); $("firstRun").style.display=has?"none":"block";
   if(!has){ setGh(false,"GitHub: no publishing key"); live=null; history=[]; renderTiers(); renderLive(); renderHistory(); $("liveTiles").innerHTML=""; if(window.NMC) NMC.enter(); return; }
   const [l,h]=await Promise.all([rateDesk.live(), rateDesk.history()]);
-  if(l&&l.error){ setGh(false,"GitHub: "+l.error); live=null; } else { live=l; setGh(true,"GitHub: connected · doubledekr/nmc-rate-desk"); }
-  history=Array.isArray(h)?h:[]; renderTiers(); renderLive(); renderHistory(); renderPace(); if(window.NMC){ NMC.enter(); } }
+  if(l&&l.error){ setGh(false,"GitHub: "+l.error); live=null; } else { live=l; setGh(true,"GitHub: connected"); $("ghText").title="doubledekr/nmc-rate-desk"; }
+  history=Array.isArray(h)?h:[]; renderTiers(); renderLive(); renderHistory(); renderPace(); renderBrief(); if(typeof renderInbox==="function") renderInbox(); if(window.NMC){ NMC.enter(); } }
 function setGh(on,text){ $("dotGh").className="dot "+(on?"on":"off"); $("ghText").textContent=text; }
 
 function confirmPublish(){ if(!validate()) return; const {out}=readTiers(); const t=vaTiers(live);
@@ -226,15 +528,15 @@ function confirmPublish(){ if(!validate()) return; const {out}=readTiers(); cons
   $("confirm").style.display="flex"; }
 function closeConfirm(){ $("confirm").style.display="none"; }
 async function doPublish(){ const {out,ok}=readTiers(); if(!ok) return; $("goBtn").disabled=true; $("goBtn").textContent="Publishing…";
-  try{ const r=await rateDesk.publish({ by: settings.publisher, note: $("note").value, products: { va_irrrl: { label: "VA Streamline", tiers: out } } });
+  try{ const r=await rateDesk.publish({ by: settings.publisher, note: $("note").value, products: { va_irrrl: { label: "VA Streamline", tiers: out } }, market: marketPayload() });
     closeConfirm(); msg("good",`<b>Live ${fmtWhen(r.version)}.</b> ${r.pinged?"Toolkits were pinged instantly.":"The instant ping didn’t go through — toolkits will pick it up on their next check within a few minutes."}${r.commit?` <a href="#" onclick="rateDesk.open('${r.commit}');return false">View the commit</a>`:""}`);
     $("note").value=""; await refresh(); const pb=$("publishBtn"); pb.classList.add("pulse"); setTimeout(()=>pb.classList.remove("pulse"),400); }
   catch(e){ closeConfirm(); msg("bad","<b>Publish failed:</b> "+esc(e.message||e)); }
   $("goBtn").disabled=false; $("goBtn").textContent="Publish now"; }
 
-async function openSettings(){ settings=await rateDesk.settings(); $("pubName").value=settings.publisher||""; $("pingServer").value=settings.pingServer||""; $("pingTopic").value=settings.pingTopic||""; $("tokenIn").value=""; $("tokenMsg").textContent=(await rateDesk.hasToken())?"A publishing key is saved on this computer.":"No publishing key yet."; $("settings").style.display="flex"; }
+async function openSettings(){ settings=await rateDesk.settings(); $("pubName").value=settings.publisher||""; $("pingServer").value=settings.pingServer||""; $("pingTopic").value=settings.pingTopic||""; $("moveBps").value=settings.moveBps||5; $("sendLeanChk").checked=settings.sendLean!==false; $("tokenIn").value=""; $("tokenMsg").textContent=(await rateDesk.hasToken())?"A publishing key is saved on this computer.":"No publishing key yet."; $("settings").style.display="flex"; }
 function closeSettings(){ $("settings").style.display="none"; }
-async function saveSettings(){ settings=await rateDesk.saveSettings({ publisher: $("pubName").value.trim()||"Rate Desk", pingServer: $("pingServer").value.trim()||"https://ntfy.sh", pingTopic: $("pingTopic").value.trim()||settings.pingTopic }); closeSettings(); toast("Settings saved"); }
+async function saveSettings(){ settings=await rateDesk.saveSettings({ publisher: $("pubName").value.trim()||"Rate Desk", pingServer: $("pingServer").value.trim()||"https://ntfy.sh", pingTopic: $("pingTopic").value.trim()||settings.pingTopic, moveBps: Math.max(1,Math.min(50,parseInt($("moveBps").value,10)||5)), sendLean: $("sendLeanChk").checked }); renderLeanBlock(); shownMoveKey=null; checkMove(); renderInbox(); closeSettings(); toast("Settings saved"); }
 async function saveToken(){ const t=$("tokenIn").value.trim(); if(!t){ $("tokenMsg").textContent="Paste the key first."; return; } $("tokenMsg").textContent="Checking with GitHub…";
   const v=await rateDesk.verify(t); if(!v.ok){ $("tokenMsg").innerHTML=`<span class="err">${esc(v.error)}</span>`; return; }
   const canWrite=v.permissions&&(v.permissions.push||v.permissions.admin||v.permissions.maintain); await rateDesk.setToken(t); $("tokenIn").value="";
@@ -242,39 +544,18 @@ async function saveToken(){ const t=$("tokenIn").value.trim(); if(!t){ $("tokenM
 async function clearToken(){ await rateDesk.clearToken(); $("tokenMsg").textContent="Removed."; refresh(); }
 async function pingTest(){ await saveSettings(); const ok=await rateDesk.pingTest(); $("dotPing").className="dot "+(ok?"on":"off"); toast(ok?"Test ping sent":"Couldn’t reach the relay"); openSettings(); }
 
-/* ---- v1.3: market panel, headlines, recap, publish pace ---- */
-const MK=window.NMCMarket;
-async function loadMarket(force){ try{ market=await rateDesk.market(force); }catch(e){ market={errors:[String(e.message||e)]}; } renderMarket(); renderChart(); if(force) toast("Market data refreshed"); }
-function renderMarket(){ if(!market) return; const s=market.series||[]; const ln=MK.lean(s, market.headlines||[], market.events||[], Date.now());
-  const last=s[s.length-1], prev=s[s.length-2]; const d=last&&prev?Math.round((last.y-prev.y)*100):null;
-  $("mktTen").innerHTML=last?`<div class="stat"><div class="v">${last.y.toFixed(2)}%${d!=null?`<span class="d ${d>0?"delta up":d<0?"delta down":"delta flat"}">${d>0?"▲":d<0?"▼":"—"} ${Math.abs(d)} bps</span>`:""}</div><div class="k">10-yr Treasury · ${new Date(last.date+"T12:00:00Z").toLocaleDateString("en-US",{month:"short",day:"numeric"})} close</div></div>`
-    +`<div class="stat"><div class="v">${ln.d5!=null?(ln.d5>0?"+":ln.d5<0?"−":"±")+Math.abs(ln.d5)+" bps":"—"}</div><div class="k">10-yr, last 5 trading days</div></div>`:`<div class="hint">10-year data unavailable right now.</div>`;
-  const b=$("leanBadge"); b.textContent=ln.label; b.className="badge "+ln.state;
-  $("leanStrength").textContent=ln.strength==="strong"?"strong":ln.strength==="mild"?"mild":ln.strength==="headlines"?"from headlines only":"";
-  $("leanLine").textContent=ln.line; $("leanTilt").textContent=ln.tilt; $("leanWarn").textContent=ln.warn;
-  const ev=MK.upcoming(market.events||[], Date.now(), 45).slice(0,6);
-  $("cal").innerHTML=ev.length?ev.map(e=>`<div class="ev"><span>${esc(e.name)}</span><span class="when">${esc(MK.whenLabel(e.at, Date.now()))}</span></div>`).join(""):`<div class="hint">No major releases scheduled in the next 45 days.</div>`;
-  const errs=(market.errors||[]); $("mktSrc").innerHTML=`10-yr: ${esc(market.source||"—")} daily close${market.fetchedAt?` · checked ${esc(fmtWhen(market.fetchedAt))}`:""}`+(errs.length?`<br><span title="${esc(errs.join(" · "))}">Some sources didn’t answer (${errs.length}) — showing what came through.</span>`:"");
-  renderHeads(); }
-function renderHeads(){ const hs=(market&&market.headlines||[]).filter(h=>headFilter==="all"||h.tag===headFilter);
-  const lab={better:["tag-good","Better"],worse:["tag-warn","Worse"],neutral:["tag-flat","Neutral"]};
-  $("heads").innerHTML=hs.length?hs.slice(0,25).map((h,i)=>{ const [c,l]=lab[h.tag]||lab.neutral; const age=h.at?MK.ago(Math.round((Date.now()-Date.parse(h.at))/60000)):"";
-    return `<div class="head"><span class="${c}">${l}</span><div><a href="#" onclick="${h.link?`rateDesk.open(${esc(JSON.stringify(h.link))})`:""};return false">${esc(h.title)}</a><div class="meta">${esc(h.source)}${age?" · "+esc(age):""}${h.why?` · <span class="why">${esc(h.why)}</span>`:""}</div></div><button class="btn ghost small" onclick="addHeadToNote(${i})">+ Note</button></div>`; }).join("")
-    :`<div class="hint">${market&&market.headlines&&market.headlines.length?"No headlines match this filter.":"No rate-relevant headlines right now."}</div>`;
-  renderHeads.list=hs; }
-function addHeadToNote(i){ const h=(renderHeads.list||[])[i]; if(!h) return; const el=$("note"); const cur=el.value.trim(); let next=cur?cur+" · "+h.title:h.title; if(next.length>140) next=next.slice(0,139)+"…"; el.value=next; el.focus(); toast("Added to the note"); }
-function draftRecap(){ if(!market){ toast("Market data is still loading"); return; } const ln=MK.lean(market.series||[], market.headlines||[], market.events||[], Date.now());
-  const r=MK.recap(market.series||[], ln, market.events||[], market.headlines||[], Date.now()); if(!r){ toast("Not enough market data for a recap yet"); return; } $("note").value=r; $("note").focus(); toast("Recap drafted — edit before publishing"); }
-function renderPace(){ const p=MK.publishPace(history, Date.now()); const el=$("pace"); if(!history.length){ el.textContent=""; return; }
-  el.textContent=`Last publish ${MK.ago(p.ageMin)}${p.streak>1?` · ${p.streak}-day streak`:""}`; el.className="pace"+(p.stale?" stale":""); el.title=p.stale?"More than 3 hours since the last publish during market hours":"";
-  const wd=new Date().toLocaleDateString("en-US",{timeZone:"America/New_York",weekday:"short"}); const fr=$("firstToday"); if(fr) fr.style.display=(p.today===0&&wd!=="Sat"&&wd!=="Sun")?"block":"none"; }
-
 rateDesk.onUpdateStatus(s=>{ const b=$("updateBar"); if(s.state==="ready"){ b.style.display="block"; b.innerHTML=`Version ${s.version} is ready. <button class="btn small" onclick="rateDesk.installUpdate()">Update &amp; restart</button>`; }
   else if(s.state==="manual"){ b.style.display="block"; b.innerHTML=`Version ${s.version} is available. <button class="btn small" onclick="rateDesk.openReleases()">Download</button>`; }
   else if(s.state==="downloading"){ b.style.display="block"; b.textContent=`Downloading version ${s.version}…`; } });
-(async()=>{ $("ver").textContent="v"+rateDesk.version(); settings=await rateDesk.settings(); $("pingText").textContent="Relay: "+settings.pingServer.replace(/^https?:\/\//,""); $("dotPing").className="dot on"; await refresh(); setInterval(refresh, 10*60*1000);
-  document.querySelectorAll("#filt button").forEach(b=>b.onclick=()=>{ headFilter=b.dataset.f; document.querySelectorAll("#filt button").forEach(x=>x.classList.toggle("on",x===b)); renderHeads(); });
-  loadMarket(false); setInterval(()=>loadMarket(false), 15*60*1000); setInterval(()=>{ renderPace(); }, 60*1000); })();
+(async()=>{ $("ver").textContent="v"+rateDesk.version(); settings=await rateDesk.settings(); $("pingText").textContent="Relay: "+settings.pingServer.replace(/^https?:\/\//,""); $("dotPing").className="dot on";
+  await refresh(); setInterval(refresh, 10*60*1000);
+  loadNotes(); await loadMarket(false); await loadQuotes(false); renderInbox();
+  setInterval(()=>loadMarket(false), 15*60*1000);
+  /* live quotes: every 5 minutes in market hours, every 30 otherwise; Kobe can refresh any time */
+  setInterval(()=>{ const due=MK.isMarketHours(Date.now())?5*60000:30*60000; if(Date.now()-lastQuoteAt>=due-5000) loadQuotes(false); }, 30*1000);
+  setInterval(()=>{ renderPace(); renderInbox(); }, 60*1000);
+  try{ if(window.Notification&&Notification.permission==="default") Notification.requestPermission(); }catch(e){}
+})();
 </script>
 </body>
 </html>

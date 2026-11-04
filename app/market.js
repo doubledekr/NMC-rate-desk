@@ -13,8 +13,8 @@
     { id: "mwrt", name: "MarketWatch", url: "https://feeds.content.dowjones.io/public/rss/mw_realtimeheadlines" },
   ];
   const yyyymm = d => d.getUTCFullYear() + String(d.getUTCMonth() + 1).padStart(2, "0");
-  function treasuryUrls(now) { const d = new Date(now || Date.now()); const prev = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - 1, 1));
-    return [prev, d].map(m => "https://home.treasury.gov/resource-center/data-chart-center/interest-rates/pages/xml?data=daily_treasury_yield_curve&field_tdr_date_value_month=" + yyyymm(m)); }
+  function treasuryUrls(now) { const d = new Date(now || Date.now()); const months = [2, 1, 0].map(k => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - k, 1)));
+    return months.map(m => "https://home.treasury.gov/resource-center/data-chart-center/interest-rates/pages/xml?data=daily_treasury_yield_curve&field_tdr_date_value_month=" + yyyymm(m)); }
   const FRED_URL = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=DGS10";
   const BLS_ICS_URL = "https://www.bls.gov/schedule/news_release/bls.ics";
   /* FOMC decision days (statement at 2:00 PM ET on the second day), from federalreserve.gov. 2027 dates are tentative. */
@@ -159,7 +159,114 @@
     return res; }
   function ago(min) { if (min == null) return "never"; if (min < 1) return "just now"; if (min < 60) return min + "m ago"; const h = Math.floor(min / 60); if (h < 24) return h + "h " + (min % 60) + "m ago"; const d = Math.floor(h / 24); return d + (d === 1 ? " day ago" : " days ago"); }
 
-  const M = { FEEDS, FRED_URL, BLS_ICS_URL, FOMC, treasuryUrls, parseTreasuryXML, parseFredCSV, mergeSeries, parseFeed, isRelevant, tagHeadline, prepareHeadlines,
+  /* ---------------- live quotes (Yahoo chart endpoint; unofficial, so everything degrades quietly) ---------------- */
+  const METRICS = [
+    { sym: "^TNX", key: "ten", label: "10-yr Treasury", kind: "yield", good: "down" },
+    { sym: "^FVX", key: "five", label: "5-yr Treasury", kind: "yield", good: "down" },
+    { sym: "^TYX", key: "thirty", label: "30-yr Treasury", kind: "yield", good: "down" },
+    { sym: "MBB", key: "mbs", label: "MBS (MBB ETF)", kind: "price", good: "up" },
+    { sym: "^GSPC", key: "spx", label: "S&P 500", kind: "price", good: "" },
+    { sym: "CL=F", key: "oil", label: "Oil (WTI)", kind: "price", good: "" },
+    { sym: "DX-Y.NYB", key: "usd", label: "Dollar index", kind: "price", good: "" },
+  ];
+  const yahooUrl = sym => "https://query1.finance.yahoo.com/v8/finance/chart/" + encodeURIComponent(sym) + "?range=1d&interval=5m&includePrePost=false";
+  function parseYahooChart(json) { const r = json && json.chart && json.chart.result && json.chart.result[0]; if (!r || !r.meta) return null; const m = r.meta;
+    const ts = r.timestamp || [], q = (r.indicators && r.indicators.quote && r.indicators.quote[0]) || {}; const closes = q.close || [];
+    const points = ts.map((t, i) => ({ t: t * 1000, v: closes[i] })).filter(p => p.v != null && !isNaN(p.v));
+    let price = m.regularMarketPrice; if (price == null && points.length) price = points[points.length - 1].v; if (price == null || isNaN(price)) return null;
+    const prev = m.chartPreviousClose != null ? m.chartPreviousClose : m.previousClose;
+    const vals = points.map(p => p.v);
+    return { price: +price, prevClose: prev != null ? +prev : null, time: m.regularMarketTime ? m.regularMarketTime * 1000 : (points.length ? points[points.length - 1].t : null),
+      open: points.length ? points[0].v : null, high: vals.length ? Math.max(...vals) : (m.regularMarketDayHigh || null), low: vals.length ? Math.min(...vals) : (m.regularMarketDayLow || null), points: points.slice(-120) }; }
+  function metricChange(metric, q) { if (!q || q.prevClose == null) return null;
+    if (metric.kind === "yield") { const b = Math.round((q.price - q.prevClose) * 100); return { value: b, text: (b > 0 ? "+" : b < 0 ? "−" : "±") + Math.abs(b) + " bps", sign: Math.sign(b) }; }
+    const pc = (q.price - q.prevClose) / q.prevClose * 100; const r = Math.round(pc * 100) / 100; return { value: r, text: (r > 0 ? "+" : r < 0 ? "−" : "±") + Math.abs(r).toFixed(2) + "%", sign: Math.sign(r) }; }
+  function metricTone(metric, chg) { if (!chg || !metric.good || !chg.sign) return "flat"; return (metric.good === "down") === (chg.sign < 0) ? "better" : "worse"; }
+  function fmtMetric(metric, v) { if (v == null) return "—"; return metric.kind === "yield" ? v.toFixed(3).replace(/0$/, "") + "%" : metric.key === "spx" ? Math.round(v).toLocaleString("en-US") : v.toFixed(2); }
+  /* The daily series plus today's live 10-yr as a provisional last point, so the lean reacts during the day. */
+  function withLive(series, ten, now) { const s = (series || []).slice(); if (!ten || ten.price == null) return s; const key = etDay(ten.time || now || Date.now());
+    if (s.length && s[s.length - 1].date >= key) return s; s.push({ date: key, y: +ten.price.toFixed(3), live: true }); return s; }
+
+  /* ---------------- 10-yr move alerts ---------------- */
+  /* ref = {y, at, why}: the level bankers last heard about (last market note today) or yesterday's close. */
+  function moveCheck(ten, ref, threshold) { if (!ten || ten.price == null || !ref || ref.y == null) return null; const b = Math.round((ten.price - ref.y) * 100);
+    return { bps: b, crossed: Math.abs(b) >= (threshold || 5), dir: b > 0 ? "up" : "down", from: ref.y, to: ten.price, since: ref.at, why: ref.why }; }
+  const etTime = ms => new Date(ms).toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" });
+  function moveNote(mv, ratesNote) { if (!mv) return ""; const since = mv.why === "close" ? "since yesterday's close" : mv.since ? "since " + etTime(Date.parse(mv.since)) : "";
+    return `10-yr ${mv.dir} ${Math.abs(mv.bps)} bps to ${mv.to.toFixed(2)}% ${since}`.trim() + ". " + (ratesNote || (mv.dir === "up" ? "Rates unchanged for now — could worsen if this holds." : "Rates unchanged for now — could improve if this holds.")); }
+
+  /* ---------------- briefs ---------------- */
+  const sgn = b => (b > 0 ? "+" : b < 0 ? "−" : "±") + Math.abs(b);
+  function rateLine(history, now) { const n = now || Date.now(); const pubs = (history || []).filter(h => h && h.published && h.products && h.products.va_irrrl);
+    const get = h => { const t = h.products.va_irrrl.tiers || {}; return t["640+"] != null ? t["640+"] : t["680+"]; };
+    if (!pubs.length) return { text: "No rates published yet.", cur: null };
+    const cur = get(pubs[0]); const today = etDay(n);
+    const before = pubs.find(h => etDay(Date.parse(h.published)) < today); const prev = before ? get(before) : null; const todayCount = pubs.filter(h => etDay(Date.parse(h.published)) === today).length;
+    let txt = `VA Streamline 640+ ${(+cur).toFixed(3).replace(/0$/, "")}%`;
+    if (prev != null) { const d = Math.round((cur - prev) * 1000) / 1000; txt += d === 0 ? " (unchanged vs yesterday)" : ` (${d > 0 ? "+" : "−"}${Math.abs(d).toFixed(3).replace(/0$/, "")} vs yesterday)`; }
+    return { text: txt, cur, prev, todayCount }; }
+  function brief(kind, ctx) { const n = ctx.now || Date.now(); const s = (ctx.series || []).filter(p => p && p.y != null && !p.live); const L = ctx.live || {}; const ten = L.ten;
+    const ln = ctx.lean || lean(withLive(s, ten, n), ctx.headlines, ctx.events, n); const lines = []; const dayName = new Date(n).toLocaleDateString("en-US", { timeZone: "America/New_York", weekday: "long", month: "short", day: "numeric" });
+    const last = s[s.length - 1], prev = s[s.length - 2]; const d1 = last && prev ? Math.round((last.y - prev.y) * 100) : null;
+    const d5 = s.length >= 6 ? Math.round((last.y - s[s.length - 6].y) * 100) : null, d10 = s.length >= 11 ? Math.round((last.y - s[s.length - 11].y) * 100) : null;
+    const tenDay = ten && ten.prevClose != null ? Math.round((ten.price - ten.prevClose) * 100) : null;
+    const mbs = L.mbs && L.mbs.prevClose ? (L.mbs.price - L.mbs.prevClose) / L.mbs.prevClose * 100 : null; const mbsTxt = mbs == null ? "" : `MBS ${mbs >= 0 ? "+" : "−"}${Math.abs(mbs).toFixed(2)}% (${mbs > 0.05 ? "helping rates" : mbs < -0.05 ? "hurting rates" : "flat"})`;
+    const ev = upcoming(ctx.events || [], n, 2); const todayEv = ev.filter(e => etDay(Date.parse(e.at)) === etDay(n)); const tomEv = ev.filter(e => etDay(Date.parse(e.at)) === etDay(n + 86400000));
+    const evTxt = list => list.map(e => `${e.name} ${etTime(Date.parse(e.at))}`).join(", ");
+    const heads = (ctx.headlines || []).filter(h => h.tag !== "neutral" && h.at && Date.parse(h.at) > n - (kind === "morning" ? 18 : 8) * 3600000).slice(0, 2);
+    const rl = rateLine(ctx.history, n); let title, short;
+    if (kind === "morning") { title = "Morning brief · " + dayName;
+      if (last) lines.push(`10-yr closed ${last.y.toFixed(2)}% last session${d1 != null ? ` (${sgn(d1)} bps)` : ""}${d5 != null ? `; ${sgn(d5)} bps over 5 days` : ""}${d10 != null ? `, ${sgn(d10)} over 10` : ""}.`);
+      if (ten && tenDay != null && Math.abs(tenDay) >= 1) lines.push(`Early trading: 10-yr ${ten.price.toFixed(2)}% (${sgn(tenDay)} bps vs close).`);
+      if (ln.state !== "unknown") lines.push(`Lean: ${ln.label}${ln.strength && ln.strength !== "headlines" ? " (" + ln.strength + ")" : ""}. ${ln.tilt || ""}`.trim());
+      lines.push(todayEv.length ? `Today: ${evTxt(todayEv)}.` : "No major releases today.");
+      lines.push(`Rates: ${rl.text}.`);
+      short = [last ? `10-yr ${last.y.toFixed(2)}%${d1 != null ? " (" + sgn(d1) + " bps)" : ""}` : "", ln.state !== "unknown" ? "lean " + ln.label.toLowerCase() : "", todayEv.length ? evTxt(todayEv) + " today" : ""].filter(Boolean).join(" · ");
+    } else if (kind === "midday") { title = "Midday brief · " + dayName;
+      if (ten) lines.push(`10-yr ${ten.price.toFixed(2)}%${tenDay != null ? `, ${sgn(tenDay)} bps on the day` : ""}${ten.low != null ? ` (range ${ten.low.toFixed(2)}–${ten.high.toFixed(2)})` : ""}.`); else lines.push("Live 10-yr quote unavailable.");
+      if (mbsTxt) lines.push(mbsTxt + ".");
+      if (ln.state !== "unknown") lines.push(`Lean: ${ln.label}.`);
+      lines.push(`Rates: ${rl.text}${rl.todayCount ? ` · ${rl.todayCount} publish${rl.todayCount > 1 ? "es" : ""} today` : " · no publish yet today"}.`);
+      const later = todayEv.filter(e => Date.parse(e.at) > n); if (later.length) lines.push(`Still to come: ${evTxt(later)}.`);
+      short = [ten ? `10-yr ${ten.price.toFixed(2)}%${tenDay != null ? " (" + sgn(tenDay) + " bps today)" : ""}` : "", mbsTxt, ln.state !== "unknown" ? "lean " + ln.label.toLowerCase() : ""].filter(Boolean).join(" · ");
+    } else { title = "End-of-day brief · " + dayName;
+      const px = ten ? ten.price : last ? last.y : null; const wk = s.length >= 5 && px != null ? Math.round((px - s[Math.max(0, s.length - 5)].y) * 100) : null;
+      if (px != null) lines.push(`10-yr ${px.toFixed(2)}%${tenDay != null ? `, ${sgn(tenDay)} bps today` : ""}${wk != null ? `, ${sgn(wk)} over the past week` : ""}.`);
+      if (mbsTxt) lines.push(mbsTxt + " on the day.");
+      lines.push(`Rates: ${rl.text}${rl.todayCount ? ` · ${rl.todayCount} publish${rl.todayCount > 1 ? "es" : ""} today` : ""}.`);
+      if (ln.state !== "unknown") lines.push(`Lean going into tomorrow: ${ln.label}.`);
+      lines.push(tomEv.length ? `Tomorrow: ${evTxt(tomEv)}.` : "Nothing major scheduled tomorrow.");
+      short = [px != null ? `10-yr ${px.toFixed(2)}%${tenDay != null ? " (" + sgn(tenDay) + " bps today)" : ""}` : "", ln.state !== "unknown" ? "lean " + ln.label.toLowerCase() : "", tomEv.length ? evTxt(tomEv) + " tomorrow" : ""].filter(Boolean).join(" · ");
+    }
+    heads.forEach(h => lines.push(`• ${h.title}`));
+    return { kind, title, lines, text: title + "\n" + lines.join("\n"), short: short.length > 140 ? short.slice(0, 139) + "…" : short, lean: ln }; }
+  /* Which brief fits right now (ET): morning before 11:30, midday until 3:30, end of day after. */
+  function briefFor(now) { const p = etParts(now || Date.now()); const m = p.h * 60 + p.mi; return m < 690 ? "morning" : m < 930 ? "midday" : "eod"; }
+  function isMarketHours(now) { const p = etParts(now || Date.now()); return !(p.wd === "Sat" || p.wd === "Sun") && p.h >= 7 && p.h < 18; }
+
+  /* ---------------- archive + range summary (for the trends panel) ---------------- */
+  function archiveHeadlines(prev, fresh, now, days) { const n = now || Date.now(), cut = n - (days || 120) * 86400000; const m = new Map();
+    (prev || []).concat(fresh || []).forEach(h => { if (!h || !h.title) return; const k = h.title.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(); if (!m.has(k) || (fresh || []).includes(h)) m.set(k, h); });
+    return [...m.values()].filter(h => !h.at || Date.parse(h.at) > cut).sort((a, b) => (b.at || "") < (a.at || "") ? -1 : 1).slice(0, 600); }
+  function eventsWindow(events, now, back, fwd) { const n = now || Date.now(); const seen = new Set();
+    return (events || []).filter(e => { const t = Date.parse(e.at), k = e.name + e.at; if (seen.has(k) || t < n - (back || 120) * 86400000 || t > n + (fwd || 60) * 86400000) return false; seen.add(k); return true; }).sort((a, b) => a.at < b.at ? -1 : 1); }
+  /* What happened between t0 and t1: 10-yr move, rate changes, publishes, events, headlines. */
+  function rangeSummary(t0, t1, ctx) { const inR = t => t >= t0 && t <= t1;
+    const ten = (ctx.ten || []).filter(p => inR(p.t)); const rates = (ctx.rates || []).filter(p => inR(p.t));
+    const before = (ctx.rates || []).filter(p => p.t < t0).slice(-1)[0];
+    const firstRate = before || rates[0], lastRate = rates[rates.length - 1] || before;
+    const tenFrom = (ctx.ten || []).filter(p => p.t <= t0).slice(-1)[0] || ten[0], tenTo = ten[ten.length - 1] || tenFrom;
+    const tenBps = tenFrom && tenTo ? Math.round((tenTo.v - tenFrom.v) * 100) : null; const rateChg = firstRate && lastRate ? Math.round((lastRate.v - firstRate.v) * 1000) / 1000 : null;
+    const events = (ctx.events || []).filter(e => inR(Date.parse(e.at))); const heads = (ctx.headlines || []).filter(h => h.at && inR(Date.parse(h.at)));
+    const better = heads.filter(h => h.tag === "better").length, worse = heads.filter(h => h.tag === "worse").length;
+    let read = "";
+    if (tenBps != null && rateChg != null) { if (Math.abs(tenBps) >= 5 && Math.abs(rateChg) < 0.001) read = `The 10-yr moved ${sgn(tenBps)} bps but rates didn't change — ${tenBps < 0 ? "room to improve rates" : "rates may be due to worsen"}.`;
+      else if (tenBps < -4 && rateChg < 0) read = "Rates followed the 10-yr down."; else if (tenBps > 4 && rateChg > 0) read = "Rates followed the 10-yr up.";
+      else if (Math.abs(tenBps) < 5 && Math.abs(rateChg) >= 0.125) read = "Rates moved more than the 10-yr did."; }
+    return { t0, t1, tenFrom, tenTo, tenBps, rateFrom: firstRate, rateTo: lastRate, rateChg, publishes: rates.length, events, headlines: heads, better, worse, read }; }
+
+  const M = { archiveHeadlines, eventsWindow, rangeSummary, METRICS, yahooUrl, parseYahooChart, metricChange, metricTone, fmtMetric, withLive, moveCheck, moveNote, brief, briefFor, isMarketHours, rateLine, etTime,
+    FEEDS, FRED_URL, BLS_ICS_URL, FOMC, treasuryUrls, parseTreasuryXML, parseFredCSV, mergeSeries, parseFeed, isRelevant, tagHeadline, prepareHeadlines,
     parseICS, fomcEvents, upcoming, whenLabel, lean, recap, publishPace, ago, etToMs, etDay, decode };
   if (typeof module !== "undefined" && module.exports) module.exports = M; else root.NMCMarket = M;
 })(typeof window !== "undefined" ? window : this);

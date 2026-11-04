@@ -58,7 +58,7 @@ ipcMain.handle("github:publish", async (e, payload) => {
   Object.values(payload.products || {}).forEach(p => { if (!p || !p.tiers || p.tiers["640+"] == null) return;
     Object.entries(LEGACY_FROM).forEach(([old, nu]) => { if (p.tiers[old] == null) p.tiers[old] = p.tiers[nu]; }); });
   const s = settings(); const now = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
-  const rates = { format: RATES_FORMAT, version: now, published: now, by: payload.by || s.publisher || "Rate Desk", note: String(payload.note || "").trim(), ping: { server: s.pingServer, topic: s.pingTopic }, products: payload.products };
+  const rates = { format: RATES_FORMAT, version: now, published: now, by: payload.by || s.publisher || "Rate Desk", note: String(payload.note || "").trim(), ping: { server: s.pingServer, topic: s.pingTopic }, products: payload.products, ...(payload.market ? { market: payload.market } : {}) };
   const label = Object.entries(rates.products).map(([k, p]) => `${p.label || k} 640+ ${p.tiers["640+"]}%`).join(", ");
   const msg = `Rates ${now.slice(0, 16).replace("T", " ")} UTC — ${label}`;
   const cur = await getFile("rates/rates.json"); const r1 = await putFile("rates/rates.json", JSON.stringify(rates, null, 2) + "\n", msg, cur.sha);
@@ -84,18 +84,48 @@ async function loadMarket(){ const prev = readMarketCache() || {}; const errors 
   if (!series.length && prev.series) { series = prev.series; source = prev.source; errors.push("10-yr: showing last saved data"); }
   const feeds = await Promise.allSettled(MK.FEEDS.map(f => getText(f.url).then(t => MK.parseFeed(t, f))));
   feeds.forEach((r, i) => { if (r.status !== "fulfilled") errors.push(MK.FEEDS[i].name + ": " + (r.reason && r.reason.message || "unavailable")); });
-  let headlines = MK.prepareHeadlines(feeds.filter(r => r.status === "fulfilled").map(r => r.value), 40);
-  if (!headlines.length && prev.headlines) headlines = prev.headlines;
+  /* headlines are archived on this computer (120 days) so the trends panel can show news on past dates */
+  const fresh = MK.prepareHeadlines(feeds.filter(r => r.status === "fulfilled").map(r => r.value), 80);
+  const headlines = MK.archiveHeadlines(prev.headlines, fresh, Date.now(), 120);
   let bls = [];
   try { bls = MK.parseICS(await getText(MK.BLS_ICS_URL)); } catch (e) { errors.push("BLS calendar: " + e.message); bls = (prev.events || []).filter(e => e.source === "BLS"); }
-  const events = MK.upcoming(bls.concat(MK.fomcEvents()), Date.now(), 60);
-  marketCache = { fetchedAt: new Date().toISOString(), series: series.slice(-60), source, headlines, events, errors };
+  const events = MK.eventsWindow(bls.concat(MK.fomcEvents()), Date.now(), 120, 60);
+  marketCache = { fetchedAt: new Date().toISOString(), series: series.slice(-80), source, headlines, events, errors };
   try { fs.writeFileSync(MARKET_FILE(), JSON.stringify(marketCache)); } catch (e) {}
   return marketCache; }
 ipcMain.handle("market:get", async (e, force) => { const c = readMarketCache();
   if (!force && c && Date.now() - Date.parse(c.fetchedAt) < 10 * 60 * 1000) return c;
   if (!marketBusy) marketBusy = loadMarket().finally(() => { marketBusy = null; });
   try { return await marketBusy; } catch (err) { return Object.assign({}, c || {}, { errors: ["Market data: " + (err.message || err)] }); } });
+
+/* live quotes: one small request per symbol; a symbol that fails is simply missing */
+let liveCache = null, liveBusy = null;
+ipcMain.handle("market:live", async (e, force) => {
+  if (!force && liveCache && Date.now() - liveCache.t < 60 * 1000) return liveCache.data;
+  if (!liveBusy) liveBusy = (async () => { const out = { at: new Date().toISOString(), quotes: {}, errors: [] };
+    const res = await Promise.allSettled(MK.METRICS.map(m => getText(MK.yahooUrl(m.sym)).then(t => MK.parseYahooChart(JSON.parse(t)))));
+    res.forEach((r, i) => { const m = MK.METRICS[i]; if (r.status === "fulfilled" && r.value) out.quotes[m.key] = r.value; else out.errors.push(m.label + ": " + (r.reason && r.reason.message || "no data")); });
+    liveCache = { t: Date.now(), data: out }; return out; })().finally(() => { liveBusy = null; });
+  return liveBusy; });
+
+/* market notes: 10-yr moves, briefs and the lean, sent to bankers without touching rates.json (so no rate banner, no eligibility change).
+   Written to rates/market.json + rates/market-history.json; the ping carries kind "market". See CONTRACT.md. */
+const MARKET_FORMAT = 1;
+ipcMain.handle("github:marketNote", async (e, payload) => {
+  const s = settings(); const now = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
+  const note = { format: MARKET_FORMAT, id: now, at: now, by: payload.by || s.publisher || "Rate Desk", kind: String(payload.kind || "note"),
+    title: String(payload.title || "").slice(0, 80), text: String(payload.text || "").trim().slice(0, 280),
+    tenYear: payload.tenYear || null, lean: payload.lean || null, ping: { server: s.pingServer, topic: s.pingTopic } };
+  if (!note.text) throw new Error("The note is empty");
+  const msg = `Market note ${now.slice(0, 16).replace("T", " ")} UTC — ${note.kind}: ${note.text.slice(0, 60)}`;
+  const cur = await getFile("rates/market.json"); const r1 = await putFile("rates/market.json", JSON.stringify(note, null, 2) + "\n", msg, cur.sha);
+  const hist = await getFile("rates/market-history.json"); let list = []; try { list = hist.text ? JSON.parse(hist.text) : []; } catch (x) { list = []; }
+  const keep = Object.assign({}, note); delete keep.ping;
+  list = [keep].concat(list.filter(x => x && x.at && Date.parse(x.at) > Date.now() - 30 * 86400000)).slice(0, 300);
+  await putFile("rates/market-history.json", JSON.stringify(list) + "\n", msg + " (history)", hist.sha);
+  let pinged = false; try { const p = await fetch(`${s.pingServer.replace(/\/+$/, "")}/${s.pingTopic}`, { method: "POST", headers: { "Title": "NMC market note", "Priority": "3" }, body: JSON.stringify({ kind: "market", id: now }) }); pinged = p.ok; } catch (x) {}
+  return { ok: true, id: now, commit: r1 && r1.commit ? r1.commit.html_url : null, pinged }; });
+ipcMain.handle("github:marketHistory", async () => { try { const f = await getFile("rates/market-history.json"); return f.text ? JSON.parse(f.text) : []; } catch (e) { return []; } });
 
 /* ---- updates: same pattern as the toolkit ---- */
 let updater = null, mainWin = null, pendingVersion = null;
@@ -109,6 +139,7 @@ function setupUpdates(){ if (process.env.NMC_NO_UPDATES) return;
 ipcMain.handle("update:install", () => { if (!updater) return false; setTimeout(() => updater.quitAndInstall(false, true), 300); return true; });
 ipcMain.handle("update:openReleases", () => { shell.openExternal(RELEASES_URL); return true; });
 ipcMain.on("app:versionSync", e => { e.returnValue = app.getVersion(); });
+ipcMain.handle("app:attention", (e, n) => { try { app.setBadgeCount(n || 0); } catch (x) {} if (n && mainWin && !mainWin.isFocused()) mainWin.flashFrame(true); if (!n && mainWin) mainWin.flashFrame(false); return true; });
 ipcMain.handle("shell:open", (e, url) => { if (/^https:\/\//.test(String(url))) shell.openExternal(url); return true; });
 
 function createWindow(){

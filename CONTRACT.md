@@ -9,6 +9,8 @@ Toolkit reads it, and neither side changes it without following the rules at the
 | --- | --- | --- |
 | `rates/rates.json` | Rate Desk, on every publish | Toolkit (poll every 2 min; instantly on a ping) |
 | `rates/history.json` | Rate Desk, appended on every publish, trimmed to 90 days | Toolkit (My desk chart) |
+| `rates/market.json` | Rate Desk, on every **market note** (v1.4+) | Toolkit (market-note banner) |
+| `rates/market-history.json` | Rate Desk, appended on every market note, trimmed to 30 days | Toolkit (optional list of recent notes) |
 
 ## rates.json (format 2)
 
@@ -34,9 +36,41 @@ Toolkit reads it, and neither side changes it without following the rules at the
 - `published` — ISO-8601 UTC. Used for timestamps and the "new this week" window.
 - `ping` — where the Rate Desk posts a wake-up after each publish. The Toolkit subscribes to `server/topic/sse`. The ping carries no rates; the Toolkit always re-reads this file.
 - `products.<key>.tiers` — rates in percent, number, by credit tier. Keys are exact strings. The Toolkit uses `va_irrrl` today; other product keys are ignored until it learns them.
+- `market` *(optional, v1.4+)* — the rate desk's market read at the moment of this rate publish:
+  `{ "lean": { "state": "improving|worsening|choppy|steady", "label": "Improving", "line": "10-yr down 4 of the last 5 days, −16 bps…" } | null,
+     "tenYear": { "y": 4.82, "dayBps": -6, "asOf": "ISO time", "live": true } | null }`.
+  Absent when the rate desk turned it off. Informational only — never used for eligibility.
+- Format 2 publishes also carry the retired 7 tier names (`680+`, `660-679`, `640-659`, `600-619`, `580-599`) filled from the
+  new 4, so toolkits that haven't updated keep working. A format-2 reader uses only the 4 names below and ignores the rest.
 - Credit tiers (format 2): `640+`, `620-639`, `580-619`, `<580`. A client's score maps to the first tier whose range contains it; a client with no score is tested against `620-639` (a toolkit setting).
 
 Format 1 (retired) used seven tiers. Toolkits still read it by mapping `680+` → `640+` and `600-619` → `580-619`.
+
+## market.json (market format 1) — notes that are *not* rate changes
+
+```json
+{
+  "format": 1,
+  "id": "2026-11-05T13:42:10Z",
+  "at": "2026-11-05T13:42:10Z",
+  "by": "Kobe",
+  "kind": "move",
+  "title": "10-yr move",
+  "text": "10-yr down 6 bps to 4.82% since yesterday's close. Rates unchanged for now — could improve if this holds.",
+  "tenYear": { "y": 4.82, "bps": -6, "since": "close" },
+  "lean": { "state": "improving", "label": "Improving", "line": "…" },
+  "ping": { "server": "https://ntfy.sh", "topic": "nmc-rates-…" }
+}
+```
+
+- `kind` — `move` (10-yr moved past the alert threshold), `lean` (market lean), `brief-morning`, `brief-midday`, `brief-eod`.
+  Unknown kinds are shown like any other note.
+- `id` changes on every note; the Toolkit compares it to decide "new market note arrived".
+- `text` — plain text, at most 280 characters. Show it as written.
+- A market note **never** changes rates, eligibility, the "now eligible" list or the rate banner. It is a separate, lighter banner.
+- Every note is approved by a person on the rate desk before it is sent.
+- Ping: the same topic as rates; the body is `{"kind":"market","id":"…"}` for a market note and `{"kind":"rates","version":"…"}` for
+  a rate publish. On `market`, re-read `market.json`; on `rates`, re-read `rates.json`. Poll both files as a fallback.
 
 ## history.json
 

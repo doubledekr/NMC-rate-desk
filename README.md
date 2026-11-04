@@ -20,3 +20,9 @@ Change the shared files in the toolkit repo first, then copy them here so both a
 the recent trend (not a forecast), rate-relevant headlines from the Fed and MarketWatch tagged Better / Worse / Neutral by
 keyword rules, upcoming jobs/CPI/Fed dates, a one-click morning recap for the publish note, and a last-publish timer with a
 weekday streak. All of it stays on the rate desk — nothing new is published to the toolkits, so CONTRACT.md is unchanged.
+
+**v1.4:** live market strip (10/5/30-yr, MBS, S&P, oil, dollar — refreshed every 5 min in market hours, or on demand), 10-yr move
+alerts (default 5 bps) that Kobe approves before they go to bankers, morning / midday / end-of-day briefs, the market lean
+sent with every rate publish, an interactive Trends panel (hover lines up the rate and the 10-yr; drag across days to see the
+10-yr move, rate changes, events and headlines in that window), a headlines drawer, and an Inbox that lights up when something
+is waiting. Market notes go to `rates/market.json` — see CONTRACT.md.
