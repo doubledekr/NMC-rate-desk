@@ -202,6 +202,7 @@ svg .selrect{transition:opacity .15s}
       </table>
       <div style="margin-top:12px"><div class="notehead"><label class="hint">Note for this publish (optional — shows on the toolkit banner)</label><button class="btn ghost small" onclick="useBriefAsNote()" title="Fill the note with a one-line version of the current brief">Use brief as note</button></div><input type="text" id="note" placeholder="e.g. MBS rallied after CPI" maxlength="140"></div>
       <div class="row" style="margin-top:14px"><button class="btn" id="publishBtn" onclick="confirmPublish()">Publish rates</button><button class="btn ghost" onclick="fillFromLive()">Reset to live</button><span class="hint" id="validMsg"></span></div>
+      <div class="hint draft" id="draftMsg" style="margin-top:6px"></div>
       <div class="hint" style="margin-top:10px">Rates accept <span class="kbd">5.625</span>, <span class="kbd">5.625%</span> or <span class="kbd">5 5/8</span>. Lower credit tiers can't carry a lower rate than the tier above them.</div>
     </div>
     <div class="panel">
@@ -306,13 +307,21 @@ function msg(kind,html){ $("msg").innerHTML=html?`<div class="banner ${kind}">${
 function delta(now,prev){ if(prev==null||now==null) return ""; const d=+(now-prev).toFixed(3); if(Math.abs(d)<0.0005) return `<span class="delta flat">—</span>`; return `<span class="delta ${d>0?"up":"down"}">${d>0?"▲":"▼"} ${Math.abs(d).toFixed(3).replace(/0$/,"")}</span>`; }
 function fmtWhen(iso){ try{ return new Date(iso).toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}); }catch(e){ return iso; } }
 
-function renderTiers(){ const t=vaTiers(live);
-  $("tiers").innerHTML=TIERS.map(k=>`<tr><td><b>${TIER_LABEL[k]}</b></td><td class="num live">${pct(t[k])}</td><td class="num"><input class="rate" data-tier="${k}" value="${t[k]!=null?t[k]:""}" oninput="validate()"></td></tr>`).join(""); validate(); }
+/* Kobe's typed rates are a draft: background refreshes only update the "Live now" column and never touch the inputs.
+   The draft clears when he publishes or clicks Reset to live. */
+let editing=false, draftBase=null;
+function renderTiers(force){ const t=vaTiers(live); const have=document.querySelector('input.rate');
+  if(editing&&have&&!force){ TIERS.forEach(k=>{ const cell=document.querySelector(`td.live[data-live="${k}"]`); if(cell) cell.textContent=pct(t[k]); });
+    const changed=draftBase!==(live&&live.version); $("draftMsg").innerHTML=changed?"<b>Heads up:</b> live rates changed since you started typing — check the Live now column before publishing.":"Draft kept — refreshes won't overwrite it until you publish or reset.";
+    $("draftMsg").className="hint draft"+(changed?" err":""); validate(); return; }
+  editing=false; draftBase=null; $("draftMsg").textContent=""; $("draftMsg").className="hint draft";
+  $("tiers").innerHTML=TIERS.map(k=>`<tr><td><b>${TIER_LABEL[k]}</b></td><td class="num live" data-live="${k}">${pct(t[k])}</td><td class="num"><input class="rate" data-tier="${k}" value="${t[k]!=null?t[k]:""}" oninput="startDraft();validate()"></td></tr>`).join(""); validate(); }
+function startDraft(){ if(!editing){ editing=true; draftBase=live&&live.version; $("draftMsg").textContent="Draft kept — refreshes won't overwrite it until you publish or reset."; } }
 function readTiers(){ const out={}; let ok=true; TIERS.forEach(k=>{ const el=document.querySelector(`input[data-tier="${k}"]`); const v=parseRate(el.value); el.classList.toggle("bad", v==null||v<2||v>15); if(v==null||v<2||v>15) ok=false; out[k]=v; }); return {out,ok}; }
 function validate(){ const {out,ok}=readTiers(); let m=""; if(!ok) m="Fill every tier with a rate between 2% and 15%.";
   else { for(let i=1;i<TIERS.length;i++){ if(out[TIERS[i]]<out[TIERS[i-1]]-1e-9){ m=`${TIER_LABEL[TIERS[i]]} is lower than ${TIER_LABEL[TIERS[i-1]]} — lower tiers can't beat the tier above.`; break; } } }
   $("validMsg").textContent=m; $("validMsg").className="hint "+(m?"err":""); $("publishBtn").disabled=!!m; return !m; }
-function fillFromLive(){ renderTiers(); $("note").value=""; }
+function fillFromLive(){ renderTiers(true); $("note").value=""; }
 
 function renderLive(){ const b=$("liveBox"); if(!live){ b.innerHTML="Nothing published yet."; $("liveTiles").innerHTML=""; return; } if(live.error){ b.innerHTML=`<span class="err">${live.error}</span>`; $("liveTiles").innerHTML=""; return; }
   const t=vaTiers(live); const prev=vaTiers(history[1]);
@@ -567,7 +576,7 @@ function closeConfirm(){ $("confirm").style.display="none"; }
 async function doPublish(){ const {out,ok}=readTiers(); if(!ok) return; $("goBtn").disabled=true; $("goBtn").textContent="Publishing…";
   try{ const r=await rateDesk.publish({ by: settings.publisher, note: $("note").value, products: { va_irrrl: { label: "VA Streamline", tiers: out } }, market: marketPayload() });
     closeConfirm(); msg("good",`<b>Live ${fmtWhen(r.version)}.</b> ${r.pinged?"Toolkits were pinged instantly.":"The instant ping didn’t go through — toolkits will pick it up on their next check within a few minutes."}${r.commit?` <a href="#" onclick="rateDesk.open('${r.commit}');return false">View the commit</a>`:""}`);
-    $("note").value=""; await refresh(); const pb=$("publishBtn"); pb.classList.add("pulse"); setTimeout(()=>pb.classList.remove("pulse"),400); }
+    $("note").value=""; editing=false; await refresh(); const pb=$("publishBtn"); pb.classList.add("pulse"); setTimeout(()=>pb.classList.remove("pulse"),400); }
   catch(e){ closeConfirm(); msg("bad","<b>Publish failed:</b> "+esc(e.message||e)); }
   $("goBtn").disabled=false; $("goBtn").textContent="Publish now"; }
 
