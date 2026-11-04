@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld("rateDesk", {
   history: () => ipcRenderer.invoke("github:history"),
   publish: (payload) => ipcRenderer.invoke("github:publish", payload),
   pingTest: () => ipcRenderer.invoke("ping:test"),
+  market: (force) => ipcRenderer.invoke("market:get", !!force),
   open: (url) => ipcRenderer.invoke("shell:open", url),
   installUpdate: () => ipcRenderer.invoke("update:install"),
   openReleases: () => ipcRenderer.invoke("update:openReleases"),

@@ -48,6 +48,29 @@ input.rate.bad{border-color:var(--bad);background:#FFF4F3}
 .toast.on{opacity:1}
 .hist tr:hover{background:var(--cream)}
 .kbd{font-family:Consolas,monospace;font-size:12px;background:var(--cream);padding:1px 5px;border-radius:4px}
+/* v1.3 market panel */
+.mkt{display:grid;grid-template-columns:1fr 1.35fr;gap:22px}
+.mkt h2{display:flex;align-items:center;gap:10px}
+.mkt h2 .sp{flex:1}
+.lean{display:flex;align-items:center;gap:10px;margin:10px 0 4px;flex-wrap:wrap}
+.lean .badge{font-size:13px;font-weight:700;padding:4px 12px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--muted)}
+.lean .badge.improving{border-color:#BBD6C6;color:var(--good)}.lean .badge.worsening{border-color:#E6C2B9;color:var(--warn)}
+.lean .badge.choppy{border-color:#E8D88A;color:#7A5B00}
+.mline{font-size:13px;color:var(--ink);margin:2px 0}
+.mwarn{font-size:12.5px;color:var(--warn);margin-top:6px;font-weight:600}
+.cal{margin-top:12px}.cal .ev{display:flex;justify-content:space-between;font-size:12.5px;padding:5px 0;border-bottom:1px solid #F0EBE1}
+.cal .when{color:var(--muted);white-space:nowrap;margin-left:10px}
+.heads{max-height:330px;overflow:auto;margin-top:6px;padding-right:4px}
+.head{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:start;padding:8px 0;border-bottom:1px solid #F0EBE1}
+.head a{color:var(--ink);text-decoration:none;font-size:13px;line-height:1.35}.head a:hover{text-decoration:underline}
+.head .meta{font-size:11px;color:var(--muted);margin-top:2px}
+.head .why{font-style:italic}
+.head .tag-good,.head .tag-warn,.head .tag-flat{white-space:nowrap;font-size:10.5px;padding:1px 8px}
+.filt{display:flex;gap:6px}.filt button{font:inherit;font-size:11.5px;padding:3px 10px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--muted);cursor:pointer}
+.filt button.on{border-color:var(--brand);color:var(--brand);font-weight:600}
+.pace{white-space:nowrap}.pace.stale{color:#FFD9A8;font-weight:600}
+.notehead{display:flex;align-items:center;justify-content:space-between;gap:10px}.notehead .btn{white-space:nowrap;flex:none}
+.chart10{margin-top:14px}
 </style>
 </head>
 <body>
@@ -57,11 +80,12 @@ input.rate.bad{border-color:var(--bad);background:#FFF4F3}
     <div class="logo" aria-hidden="true"><svg width="30" height="30" viewBox="0 0 16 16" fill="none" stroke="#A53222" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 8L8 3l5.5 5M4 7v6.5h8V7"/></svg></div>
     <div><h1>NMC Rate Desk</h1><div class="tag">Publishes VA par rates by credit tier to every NMC Toolkit</div></div>
     <span class="sp"></span>
-    <div class="status"><span><span class="dot" id="dotGh"></span><span id="ghText">GitHub: not connected</span></span><span><span class="dot" id="dotPing"></span><span id="pingText">Relay</span></span><span id="ver"></span></div>
+    <div class="status"><span><span class="dot" id="dotGh"></span><span id="ghText">GitHub: not connected</span></span><span><span class="dot" id="dotPing"></span><span id="pingText">Relay</span></span><span id="pace" class="pace"></span><span id="ver"></span></div>
     <button class="btn ghost small" onclick="openSettings()">Settings</button>
   </div>
 
   <div id="firstRun" class="banner info" style="display:none"><b>First run:</b> paste the publishing key in Settings to connect this app to GitHub. You only do this once.</div>
+  <div id="firstToday" class="banner info" style="display:none"><b>No publish yet today.</b> <a href="#" onclick="draftRecap();return false">Draft the morning recap</a> to start the first note.</div>
   <div id="msg"></div>
 
   <div class="grid">
@@ -71,7 +95,7 @@ input.rate.bad{border-color:var(--bad);background:#FFF4F3}
         <thead><tr><th>Credit tier</th><th class="num">Live now</th><th class="num">New VA Streamline rate</th></tr></thead>
         <tbody id="tiers"></tbody>
       </table>
-      <div style="margin-top:12px"><label class="hint">Note for this publish (optional — shows on the toolkit banner)</label><input type="text" id="note" placeholder="e.g. MBS rallied after CPI" maxlength="140"></div>
+      <div style="margin-top:12px"><div class="notehead"><label class="hint">Note for this publish (optional — shows on the toolkit banner)</label><button class="btn ghost small" onclick="draftRecap()" title="Fill the note with a one-line market recap">Draft morning recap</button></div><input type="text" id="note" placeholder="e.g. MBS rallied after CPI" maxlength="140"></div>
       <div class="row" style="margin-top:14px"><button class="btn" id="publishBtn" onclick="confirmPublish()">Publish rates</button><button class="btn ghost" onclick="fillFromLive()">Reset to live</button><span class="hint" id="validMsg"></span></div>
       <div class="hint" style="margin-top:10px">Rates accept <span class="kbd">5.625</span>, <span class="kbd">5.625%</span> or <span class="kbd">5 5/8</span>. Lower credit tiers can't carry a lower rate than the tier above them.</div>
     </div>
@@ -82,6 +106,30 @@ input.rate.bad{border-color:var(--bad);background:#FFF4F3}
       <h2 style="margin-top:18px">640+ tier, last 30 days</h2>
       <svg id="chart" class="chart" viewBox="0 0 440 160" preserveAspectRatio="none"></svg>
       <div class="hint" id="chartHint"></div>
+      <h2 class="chart10">10-yr Treasury, same 30 days</h2>
+      <svg id="chart10" class="chart" viewBox="0 0 440 160" preserveAspectRatio="none"></svg>
+      <div class="hint" id="chart10Hint"></div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-top:18px">
+    <div class="mkt">
+      <div>
+        <h2>Market<span class="sp"></span><button class="btn ghost small" onclick="loadMarket(true)">Refresh</button></h2>
+        <div id="mktTen" class="tiles" style="grid-template-columns:1fr 1fr"></div>
+        <div class="lean"><span class="hint">Lean</span><span id="leanBadge" class="badge">—</span><span class="hint" id="leanStrength"></span></div>
+        <div class="mline" id="leanLine"></div>
+        <div class="mline hint" id="leanTilt"></div>
+        <div class="mwarn" id="leanWarn"></div>
+        <div class="hint" style="margin-top:8px">The lean describes what the 10-year has done lately. It is not a forecast. Rate desk only — not sent to the toolkits.</div>
+        <div class="cal"><b style="font-size:12px">Coming up</b><div id="cal"></div></div>
+        <div class="hint" id="mktSrc" style="margin-top:8px"></div>
+      </div>
+      <div>
+        <h2>Headlines<span class="sp"></span><span class="filt" id="filt"><button class="on" data-f="all">All</button><button data-f="better">Better</button><button data-f="worse">Worse</button></span></h2>
+        <div class="heads" id="heads"><div class="hint">Loading headlines…</div></div>
+        <div class="hint" style="margin-top:6px">Tags are keyword rules: <span class="tag-good">Better</span> tends to pull rates down, <span class="tag-warn">Worse</span> tends to push them up. Use “+ Note” to add one to this publish.</div>
+      </div>
     </div>
   </div>
 
@@ -114,6 +162,7 @@ input.rate.bad{border-color:var(--bad);background:#FFF4F3}
 <div class="toast" id="toast"></div>
 
 <script src="theme/nmc-motion.js"></script>
+<script src="market.js"></script>
 <script>
 const TIERS=["640+","620-639","580-619","<580"];
 const TIER_LABEL={"640+":"640 and up","620-639":"620–639","580-619":"580–619","<580":"Below 580"};
@@ -122,7 +171,7 @@ const LEGACY={"640+":"680+","580-619":"600-619"};
 const tv=(t,k)=>!t?null:(t[k]!=null?t[k]:(LEGACY[k]&&t[LEGACY[k]]!=null?t[LEGACY[k]]:null));
 const vaTiers=h=>{ const t=h&&h.products&&h.products.va_irrrl?h.products.va_irrrl.tiers:null; if(!t) return {}; const o={}; TIERS.forEach(k=>{ o[k]=tv(t,k); }); return o; };
 const $=id=>document.getElementById(id);
-let live=null, history=[], settings={};
+let live=null, history=[], settings={}, market=null, headFilter="all";
 const pct=v=>v==null||isNaN(v)?"—":(+v).toFixed(3).replace(/0$/,"")+"%";
 function parseRate(s){ s=String(s||"").trim().replace(/%$/,"").trim(); if(!s) return null; const m=s.match(/^(\d+)\s+(\d+)\/(\d+)$/); if(m) return +m[1]+(+m[2])/(+m[3]); const f=s.match(/^(\d+)\/(\d+)$/); if(f) return (+f[1])/(+f[2]); const n=parseFloat(s); return isNaN(n)?null:n; }
 function toast(t){ const el=$("toast"); el.textContent=t; el.classList.add("on"); clearTimeout(toast.t); toast.t=setTimeout(()=>el.classList.remove("on"),3500); }
@@ -145,22 +194,30 @@ function renderLive(){ const b=$("liveBox"); if(!live){ b.innerHTML="Nothing pub
 function renderHistory(){ $("hist").innerHTML=history.length?history.slice(0,40).map((h,i)=>{ const t=vaTiers(h); const p=vaTiers(history[i+1]);
   return `<tr><td>${fmtWhen(h.published)}</td><td>${esc(h.by||"")}</td>${TIERS.map(k=>`<td class="num">${pct(t[k])}${delta(t[k],p[k])}</td>`).join("")}<td class="hint">${esc(h.note||"")}</td></tr>`; }).join(""):`<tr><td colspan="7" class="hint">No publishes yet.</td></tr>`;
   renderChart(); }
-function renderChart(){ const svg=$("chart"); const cutoff=Date.now()-30*86400000; const pts=history.filter(h=>Date.parse(h.published)>cutoff&&h.products&&h.products.va_irrrl).map(h=>({t:Date.parse(h.published),v:vaTiers(h)["640+"]})).filter(p=>p.v!=null).sort((a,b)=>a.t-b.t);
-  if(pts.length<2){ svg.innerHTML=""; $("chartHint").textContent=pts.length?"One publish so far — the line starts with the next one.":""; return; }
-  const W=440,H=160,L=44,R=10,T=12,B=24; const t0=pts[0].t,t1=pts[pts.length-1].t; let lo=Math.min(...pts.map(p=>p.v)),hi=Math.max(...pts.map(p=>p.v)); if(hi-lo<0.25){ const m=(hi+lo)/2; lo=m-0.125; hi=m+0.125; }
+function drawLine(svgId, pts, fmt, color, t0, t1){ const svg=$(svgId); t1=Math.max(t1, ...pts.map(p=>p.t)); const dense=pts.length>14;
+  if(pts.length<2){ svg.innerHTML=""; return false; }
+  const W=440,H=160,L=44,R=10,T=12,B=24; let lo=Math.min(...pts.map(p=>p.v)),hi=Math.max(...pts.map(p=>p.v)); if(hi-lo<0.25){ const m=(hi+lo)/2; lo=m-0.125; hi=m+0.125; }
   const X=t=>L+(t-t0)/Math.max(1,t1-t0)*(W-L-R), Y=v=>T+(hi-v)/(hi-lo)*(H-T-B);
   const d=pts.map((p,i)=>(i?"L":"M")+X(p.t).toFixed(1)+" "+Y(p.v).toFixed(1)).join(" ");
-  const ticks=[lo,(lo+hi)/2,hi]; svg.innerHTML=ticks.map(v=>`<line x1="${L}" x2="${W-R}" y1="${Y(v)}" y2="${Y(v)}" stroke="#EFEAE0"/><text x="${L-6}" y="${Y(v)+4}" font-size="10" text-anchor="end" fill="#5C616E">${v.toFixed(3).replace(/0$/,"")}%</text>`).join("")
-    +`<path d="${d}" fill="none" stroke="#A53222" stroke-width="2" vector-effect="non-scaling-stroke"/>`+pts.map(p=>`<circle cx="${X(p.t)}" cy="${Y(p.v)}" r="3" fill="#A53222"><title>${fmtWhen(new Date(p.t).toISOString())} — ${pct(p.v)}</title></circle>`).join("")
+  const ticks=[lo,(lo+hi)/2,hi]; svg.innerHTML=ticks.map(v=>`<line x1="${L}" x2="${W-R}" y1="${Y(v)}" y2="${Y(v)}" stroke="#EFEAE0"/><text x="${L-6}" y="${Y(v)+4}" font-size="10" text-anchor="end" fill="#5C616E">${fmt(v)}</text>`).join("")
+    +`<path d="${d}" fill="none" stroke="${color}" stroke-width="2" vector-effect="non-scaling-stroke"/>`+pts.map(p=>`<circle cx="${X(p.t)}" cy="${Y(p.v)}" r="${dense?2.5:4}" fill="${color}"${dense?"":` stroke="#fff" stroke-width="2"`}><title>${p.label} — ${fmt(p.v)}</title></circle>`).join("")
     +`<text x="${L}" y="${H-6}" font-size="10" fill="#5C616E">${new Date(t0).toLocaleDateString("en-US",{month:"short",day:"numeric"})}</text><text x="${W-R}" y="${H-6}" font-size="10" text-anchor="end" fill="#5C616E">${new Date(t1).toLocaleDateString("en-US",{month:"short",day:"numeric"})}</text>`;
-  $("chartHint").textContent=`${pts.length} publishes · low ${pct(Math.min(...pts.map(p=>p.v)))} · high ${pct(Math.max(...pts.map(p=>p.v)))}`; }
+  if(window.NMC) NMC.charts(svg.parentNode); return true; }
+const f3=v=>v.toFixed(3).replace(/0$/,"")+"%", f2=v=>v.toFixed(2)+"%";
+function renderChart(){ const lastTen=(market&&market.series||[]).slice(-1)[0]; const t1=Math.max(Date.now(), lastTen?Date.parse(lastTen.date+"T21:00:00Z"):0), t0=t1-30*86400000;
+  const pts=history.filter(h=>Date.parse(h.published)>t0&&h.products&&h.products.va_irrrl).map(h=>({t:Date.parse(h.published),v:vaTiers(h)["640+"],label:fmtWhen(h.published)})).filter(p=>p.v!=null).sort((a,b)=>a.t-b.t);
+  drawLine("chart", pts, f3, "#A53222", t0, t1);
+  $("chartHint").textContent=pts.length>=2?`${pts.length} publishes · low ${pct(Math.min(...pts.map(p=>p.v)))} · high ${pct(Math.max(...pts.map(p=>p.v)))}`:(pts.length?"One publish so far — the line starts with the next one.":"");
+  const ten=(market&&market.series||[]).map(p=>({t:Date.parse(p.date+"T21:00:00Z"),v:p.y,label:new Date(p.date+"T12:00:00Z").toLocaleDateString("en-US",{month:"short",day:"numeric"})+" close"})).filter(p=>p.t>t0);
+  const ok=drawLine("chart10", ten, f2, "#26262E", t0, t1);
+  $("chart10Hint").textContent=ok?`Daily close · low ${f2(Math.min(...ten.map(p=>p.v)))} · high ${f2(Math.max(...ten.map(p=>p.v)))} · lower yield usually means better rates`:(market?"10-year data unavailable right now.":"Loading 10-year data…"); }
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
 async function refresh(){ const has=await rateDesk.hasToken(); $("firstRun").style.display=has?"none":"block";
   if(!has){ setGh(false,"GitHub: no publishing key"); live=null; history=[]; renderTiers(); renderLive(); renderHistory(); $("liveTiles").innerHTML=""; if(window.NMC) NMC.enter(); return; }
   const [l,h]=await Promise.all([rateDesk.live(), rateDesk.history()]);
   if(l&&l.error){ setGh(false,"GitHub: "+l.error); live=null; } else { live=l; setGh(true,"GitHub: connected · doubledekr/nmc-rate-desk"); }
-  history=Array.isArray(h)?h:[]; renderTiers(); renderLive(); renderHistory(); if(window.NMC){ NMC.enter(); } }
+  history=Array.isArray(h)?h:[]; renderTiers(); renderLive(); renderHistory(); renderPace(); if(window.NMC){ NMC.enter(); } }
 function setGh(on,text){ $("dotGh").className="dot "+(on?"on":"off"); $("ghText").textContent=text; }
 
 function confirmPublish(){ if(!validate()) return; const {out}=readTiers(); const t=vaTiers(live);
@@ -185,10 +242,39 @@ async function saveToken(){ const t=$("tokenIn").value.trim(); if(!t){ $("tokenM
 async function clearToken(){ await rateDesk.clearToken(); $("tokenMsg").textContent="Removed."; refresh(); }
 async function pingTest(){ await saveSettings(); const ok=await rateDesk.pingTest(); $("dotPing").className="dot "+(ok?"on":"off"); toast(ok?"Test ping sent":"Couldn’t reach the relay"); openSettings(); }
 
+/* ---- v1.3: market panel, headlines, recap, publish pace ---- */
+const MK=window.NMCMarket;
+async function loadMarket(force){ try{ market=await rateDesk.market(force); }catch(e){ market={errors:[String(e.message||e)]}; } renderMarket(); renderChart(); if(force) toast("Market data refreshed"); }
+function renderMarket(){ if(!market) return; const s=market.series||[]; const ln=MK.lean(s, market.headlines||[], market.events||[], Date.now());
+  const last=s[s.length-1], prev=s[s.length-2]; const d=last&&prev?Math.round((last.y-prev.y)*100):null;
+  $("mktTen").innerHTML=last?`<div class="stat"><div class="v">${last.y.toFixed(2)}%${d!=null?`<span class="d ${d>0?"delta up":d<0?"delta down":"delta flat"}">${d>0?"▲":d<0?"▼":"—"} ${Math.abs(d)} bps</span>`:""}</div><div class="k">10-yr Treasury · ${new Date(last.date+"T12:00:00Z").toLocaleDateString("en-US",{month:"short",day:"numeric"})} close</div></div>`
+    +`<div class="stat"><div class="v">${ln.d5!=null?(ln.d5>0?"+":ln.d5<0?"−":"±")+Math.abs(ln.d5)+" bps":"—"}</div><div class="k">10-yr, last 5 trading days</div></div>`:`<div class="hint">10-year data unavailable right now.</div>`;
+  const b=$("leanBadge"); b.textContent=ln.label; b.className="badge "+ln.state;
+  $("leanStrength").textContent=ln.strength==="strong"?"strong":ln.strength==="mild"?"mild":ln.strength==="headlines"?"from headlines only":"";
+  $("leanLine").textContent=ln.line; $("leanTilt").textContent=ln.tilt; $("leanWarn").textContent=ln.warn;
+  const ev=MK.upcoming(market.events||[], Date.now(), 45).slice(0,6);
+  $("cal").innerHTML=ev.length?ev.map(e=>`<div class="ev"><span>${esc(e.name)}</span><span class="when">${esc(MK.whenLabel(e.at, Date.now()))}</span></div>`).join(""):`<div class="hint">No major releases scheduled in the next 45 days.</div>`;
+  const errs=(market.errors||[]); $("mktSrc").innerHTML=`10-yr: ${esc(market.source||"—")} daily close${market.fetchedAt?` · checked ${esc(fmtWhen(market.fetchedAt))}`:""}`+(errs.length?`<br><span title="${esc(errs.join(" · "))}">Some sources didn’t answer (${errs.length}) — showing what came through.</span>`:"");
+  renderHeads(); }
+function renderHeads(){ const hs=(market&&market.headlines||[]).filter(h=>headFilter==="all"||h.tag===headFilter);
+  const lab={better:["tag-good","Better"],worse:["tag-warn","Worse"],neutral:["tag-flat","Neutral"]};
+  $("heads").innerHTML=hs.length?hs.slice(0,25).map((h,i)=>{ const [c,l]=lab[h.tag]||lab.neutral; const age=h.at?MK.ago(Math.round((Date.now()-Date.parse(h.at))/60000)):"";
+    return `<div class="head"><span class="${c}">${l}</span><div><a href="#" onclick="${h.link?`rateDesk.open(${esc(JSON.stringify(h.link))})`:""};return false">${esc(h.title)}</a><div class="meta">${esc(h.source)}${age?" · "+esc(age):""}${h.why?` · <span class="why">${esc(h.why)}</span>`:""}</div></div><button class="btn ghost small" onclick="addHeadToNote(${i})">+ Note</button></div>`; }).join("")
+    :`<div class="hint">${market&&market.headlines&&market.headlines.length?"No headlines match this filter.":"No rate-relevant headlines right now."}</div>`;
+  renderHeads.list=hs; }
+function addHeadToNote(i){ const h=(renderHeads.list||[])[i]; if(!h) return; const el=$("note"); const cur=el.value.trim(); let next=cur?cur+" · "+h.title:h.title; if(next.length>140) next=next.slice(0,139)+"…"; el.value=next; el.focus(); toast("Added to the note"); }
+function draftRecap(){ if(!market){ toast("Market data is still loading"); return; } const ln=MK.lean(market.series||[], market.headlines||[], market.events||[], Date.now());
+  const r=MK.recap(market.series||[], ln, market.events||[], market.headlines||[], Date.now()); if(!r){ toast("Not enough market data for a recap yet"); return; } $("note").value=r; $("note").focus(); toast("Recap drafted — edit before publishing"); }
+function renderPace(){ const p=MK.publishPace(history, Date.now()); const el=$("pace"); if(!history.length){ el.textContent=""; return; }
+  el.textContent=`Last publish ${MK.ago(p.ageMin)}${p.streak>1?` · ${p.streak}-day streak`:""}`; el.className="pace"+(p.stale?" stale":""); el.title=p.stale?"More than 3 hours since the last publish during market hours":"";
+  const wd=new Date().toLocaleDateString("en-US",{timeZone:"America/New_York",weekday:"short"}); const fr=$("firstToday"); if(fr) fr.style.display=(p.today===0&&wd!=="Sat"&&wd!=="Sun")?"block":"none"; }
+
 rateDesk.onUpdateStatus(s=>{ const b=$("updateBar"); if(s.state==="ready"){ b.style.display="block"; b.innerHTML=`Version ${s.version} is ready. <button class="btn small" onclick="rateDesk.installUpdate()">Update &amp; restart</button>`; }
   else if(s.state==="manual"){ b.style.display="block"; b.innerHTML=`Version ${s.version} is available. <button class="btn small" onclick="rateDesk.openReleases()">Download</button>`; }
   else if(s.state==="downloading"){ b.style.display="block"; b.textContent=`Downloading version ${s.version}…`; } });
-(async()=>{ $("ver").textContent="v"+rateDesk.version(); settings=await rateDesk.settings(); $("pingText").textContent="Relay: "+settings.pingServer.replace(/^https?:\/\//,""); $("dotPing").className="dot on"; await refresh(); setInterval(refresh, 10*60*1000); })();
+(async()=>{ $("ver").textContent="v"+rateDesk.version(); settings=await rateDesk.settings(); $("pingText").textContent="Relay: "+settings.pingServer.replace(/^https?:\/\//,""); $("dotPing").className="dot on"; await refresh(); setInterval(refresh, 10*60*1000);
+  document.querySelectorAll("#filt button").forEach(b=>b.onclick=()=>{ headFilter=b.dataset.f; document.querySelectorAll("#filt button").forEach(x=>x.classList.toggle("on",x===b)); renderHeads(); });
+  loadMarket(false); setInterval(()=>loadMarket(false), 15*60*1000); setInterval(()=>{ renderPace(); }, 60*1000); })();
 </script>
 </body>
 </html>

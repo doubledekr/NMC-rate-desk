@@ -15,3 +15,8 @@ just became eligible.
 The app uses the shared NMC theme (`app/theme/nmc-theme.css` + `app/theme/nmc-motion.js`, copied from the
 toolkit repo's `banker-toolkit/theme/`) with a small Rate Desk overlay in `app/theme/rate-desk.css`.
 Change the shared files in the toolkit repo first, then copy them here so both apps stay in step.
+
+**Market panel (v1.3):** the 10-year Treasury (daily close from the U.S. Treasury, FRED as backup), a "lean" that describes
+the recent trend (not a forecast), rate-relevant headlines from the Fed and MarketWatch tagged Better / Worse / Neutral by
+keyword rules, upcoming jobs/CPI/Fed dates, a one-click morning recap for the publish note, and a last-publish timer with a
+weekday streak. All of it stays on the rate desk — nothing new is published to the toolkits, so CONTRACT.md is unchanged.

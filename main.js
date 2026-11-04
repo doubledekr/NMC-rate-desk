@@ -2,7 +2,8 @@
    Publishes rates/rates.json and rates/history.json to the GitHub repo through the Contents API, then pings the
    relay so every NMC Toolkit wakes up at once. The publishing token is encrypted with the OS keychain (safeStorage)
    and kept in the app's data folder; it never leaves this machine and survives app updates. */
-const { app, BrowserWindow, ipcMain, shell, safeStorage, Menu } = require("electron");
+const { app, BrowserWindow, ipcMain, shell, safeStorage, Menu, net } = require("electron");
+const MK = require("./app/market.js");
 const fs = require("fs"), path = require("path");
 
 const REPO = { owner: "doubledekr", repo: "nmc-rate-desk", branch: "main" };
@@ -67,6 +68,34 @@ ipcMain.handle("github:publish", async (e, payload) => {
   let pinged = false; try { const p = await fetch(`${s.pingServer.replace(/\/+$/, "")}/${s.pingTopic}`, { method: "POST", headers: { "Title": "NMC rates", "Tags": "chart_with_downwards_trend", "Priority": "3" }, body: JSON.stringify({ kind: "rates", version: now }) }); pinged = p.ok; } catch (x) {}
   return { ok: true, version: now, commit: r1 && r1.commit ? r1.commit.html_url : null, pinged, rates }; });
 ipcMain.handle("ping:test", async () => { const s = settings(); try { const p = await fetch(`${s.pingServer.replace(/\/+$/, "")}/${s.pingTopic}`, { method: "POST", headers: { "Title": "NMC rates (test)" }, body: JSON.stringify({ kind: "test", at: new Date().toISOString() }) }); return p.ok; } catch (x) { return false; } });
+
+/* ---- market data: 10-yr Treasury, headlines, release calendar ----
+   Read-only public sources, fetched from this computer. Cached to disk so the panel still shows the last good data offline.
+   Nothing here is published to the toolkits. */
+const MARKET_FILE = () => path.join(DATA(), "market-cache.json");
+let marketCache = null, marketBusy = null;
+function readMarketCache(){ if (marketCache) return marketCache; try { marketCache = JSON.parse(fs.readFileSync(MARKET_FILE(), "utf8")); } catch (e) { marketCache = null; } return marketCache; }
+async function getText(url){ const r = await net.fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) NMC-Rate-Desk/" + app.getVersion(), "Accept": "*/*" } });
+  if (!r.ok) throw new Error(r.status + " " + r.statusText); return r.text(); }
+async function loadMarket(){ const prev = readMarketCache() || {}; const errors = [];
+  const tre = await Promise.allSettled(MK.treasuryUrls(Date.now()).map(getText));
+  let series = MK.mergeSeries(...tre.filter(x => x.status === "fulfilled").map(x => MK.parseTreasuryXML(x.value))), source = "U.S. Treasury";
+  if (series.length < 11) { try { const fred = MK.parseFredCSV(await getText(MK.FRED_URL)); if (fred.length) { series = MK.mergeSeries(fred.slice(-60), series); source = series.length ? "FRED / Treasury" : source; } } catch (e) { errors.push("10-yr: " + e.message); } }
+  if (!series.length && prev.series) { series = prev.series; source = prev.source; errors.push("10-yr: showing last saved data"); }
+  const feeds = await Promise.allSettled(MK.FEEDS.map(f => getText(f.url).then(t => MK.parseFeed(t, f))));
+  feeds.forEach((r, i) => { if (r.status !== "fulfilled") errors.push(MK.FEEDS[i].name + ": " + (r.reason && r.reason.message || "unavailable")); });
+  let headlines = MK.prepareHeadlines(feeds.filter(r => r.status === "fulfilled").map(r => r.value), 40);
+  if (!headlines.length && prev.headlines) headlines = prev.headlines;
+  let bls = [];
+  try { bls = MK.parseICS(await getText(MK.BLS_ICS_URL)); } catch (e) { errors.push("BLS calendar: " + e.message); bls = (prev.events || []).filter(e => e.source === "BLS"); }
+  const events = MK.upcoming(bls.concat(MK.fomcEvents()), Date.now(), 60);
+  marketCache = { fetchedAt: new Date().toISOString(), series: series.slice(-60), source, headlines, events, errors };
+  try { fs.writeFileSync(MARKET_FILE(), JSON.stringify(marketCache)); } catch (e) {}
+  return marketCache; }
+ipcMain.handle("market:get", async (e, force) => { const c = readMarketCache();
+  if (!force && c && Date.now() - Date.parse(c.fetchedAt) < 10 * 60 * 1000) return c;
+  if (!marketBusy) marketBusy = loadMarket().finally(() => { marketBusy = null; });
+  try { return await marketBusy; } catch (err) { return Object.assign({}, c || {}, { errors: ["Market data: " + (err.message || err)] }); } });
 
 /* ---- updates: same pattern as the toolkit ---- */
 let updater = null, mainWin = null, pendingVersion = null;
