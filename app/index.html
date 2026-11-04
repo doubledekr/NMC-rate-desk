@@ -130,6 +130,15 @@ svg .selrect{transition:opacity .15s}
 .notehead{display:flex;align-items:center;justify-content:space-between;gap:10px}.notehead .btn{white-space:nowrap;flex:none}
 .btn{transition:transform .12s var(--spring),box-shadow .15s,background .2s}.btn:active{transform:scale(.96)}
 .check{display:inline-block;margin-left:6px;animation:chipbump .5s var(--spring)}
+/* composer */
+.composer .box{width:600px}
+.composer textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:inherit;min-height:86px;resize:vertical}
+.composer .cnt{font-size:11px;color:var(--muted);text-align:right;margin-top:2px;transition:color .2s}.composer .cnt.over{color:var(--bad,#B3261E);font-weight:700}
+.composer .kind{display:inline-block;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--brand);font-weight:700;margin-bottom:4px}
+.preview{margin-top:12px;border:1px dashed var(--line);border-radius:12px;padding:10px 12px;background:var(--cream-soft,#F7F1E6)}
+.preview .pt{font-weight:700;font-size:13px}.preview .pc{margin-top:6px;padding-left:10px;border-left:3px solid var(--brand);font-style:italic}
+.alert .cmt{margin-top:8px}
+.sent .it i{color:var(--ink)}
 /* inbox */
 .bellwrap{position:relative}
 #bell{position:relative;display:inline-flex;align-items:center;gap:6px}
@@ -166,6 +175,7 @@ svg .selrect{transition:opacity .15s}
     <span class="sp"></span>
     <div class="status"><span><span class="dot" id="dotGh"></span><span id="ghText">GitHub: not connected</span></span><span><span class="dot" id="dotPing"></span><span id="pingText">Relay</span></span><span id="pace" class="pace"></span><span id="ver"></span></div>
     <span class="bellwrap"><button class="btn ghost small" id="bell" onclick="toggleInbox()" aria-label="Inbox"><span class="bi">🔔</span>Inbox<span id="bellCount">0</span></button></span>
+    <button class="btn ghost small" onclick="openComposer({kind:'broadcast'})" title="Send your own message to every toolkit">Broadcast</button>
     <button class="btn ghost small" onclick="openSettings()">Settings</button>
   </div>
 
@@ -179,6 +189,7 @@ svg .selrect{transition:opacity .15s}
     <div class="row" style="justify-content:space-between"><div><div class="big" id="alertBig"></div><div class="hint" id="alertSub"></div></div>
       <div class="row"><button class="btn ghost small" onclick="dismissMove()">Dismiss</button><button class="btn small" id="alertSend" onclick="sendMove()">Send to bankers</button></div></div>
     <textarea id="alertText" maxlength="280"></textarea>
+    <input type="text" id="alertComment" class="cmt" maxlength="200" placeholder="Add your own note (optional) — e.g. Hold locks until after the jobs report">
     <div class="hint">Goes to every toolkit as a market note. It doesn't change rates or eligibility. Sending or dismissing sets a new baseline for the next alert.</div>
   </div>
 
@@ -247,6 +258,16 @@ svg .selrect{transition:opacity .15s}
   <table><thead><tr><th>Tier</th><th class="num">Live</th><th class="num">New</th><th class="num">Change</th></tr></thead><tbody id="diff"></tbody></table>
   <div class="hint" id="diffNote" style="margin-top:8px"></div>
   <div class="row" style="margin-top:14px;justify-content:flex-end"><button class="btn ghost" onclick="closeConfirm()">Cancel</button><button class="btn" id="goBtn" onclick="doPublish()">Publish now</button></div>
+</div></div>
+
+<div class="modal composer" id="composer"><div class="box">
+  <span class="kind" id="cmpKind"></span>
+  <h2 id="cmpTitle">Send to bankers</h2>
+  <div id="cmpMsgWrap"><label class="hint" id="cmpMsgLabel">Message</label><textarea id="cmpText" maxlength="280" oninput="cmpCount()"></textarea><div class="cnt" id="cmpCnt"></div></div>
+  <div id="cmpNoteWrap" style="margin-top:8px"><label class="hint">Your note (optional — shown under the message)</label><input type="text" id="cmpNote" maxlength="200" oninput="cmpCount()" placeholder="e.g. Good day to lock VA streamlines in the pipeline"></div>
+  <div class="preview"><div class="hint" style="margin-bottom:4px">What bankers will see</div><div class="pt" id="pvTitle"></div><div id="pvText"></div><div class="pc" id="pvNote" style="display:none"></div></div>
+  <div class="hint" style="margin-top:8px">Goes to every toolkit as a market note. It doesn't change rates or eligibility.</div>
+  <div class="row" style="margin-top:14px;justify-content:flex-end"><button class="btn ghost" onclick="closeComposer()">Cancel</button><button class="btn" id="cmpSend" onclick="sendComposer()">Send to bankers</button></div>
 </div></div>
 
 <div class="modal" id="settings"><div class="box">
@@ -335,10 +356,10 @@ function checkMove(){ const ten=Q("ten"), ref=moveRef(); const th=+settings.move
   const key=ref.y+"|"+mv.dir+"|"+Math.floor(Math.abs(mv.bps)/th); if(key===shownMoveKey) { $("alertBig").textContent=`10-yr ${mv.dir} ${Math.abs(mv.bps)} bps — now ${mv.to.toFixed(2)}%`; return; }
   shownMoveKey=key; const a=$("alert"); $("alertBig").textContent=`10-yr ${mv.dir} ${Math.abs(mv.bps)} bps — now ${mv.to.toFixed(2)}%`;
   $("alertSub").textContent=ref.why==="close"?`vs yesterday's close of ${ref.y.toFixed(2)}% · mortgage rates haven't been republished`:`vs ${ref.y.toFixed(2)}% when bankers last heard (${MK.etTime(Date.parse(ref.at))})`;
-  $("alertText").value=MK.moveNote(mv); a.classList.remove("on"); void a.offsetWidth; a.classList.add("on");
+  $("alertText").value=MK.moveNote(mv); $("alertComment").value=""; a.classList.remove("on"); void a.offsetWidth; a.classList.add("on");
   try{ if(MK.isMarketHours(Date.now())) new Notification("NMC Rate Desk — 10-yr "+mv.dir+" "+Math.abs(mv.bps)+" bps", { body:"Review and send a market note to bankers.", silent:false }); }catch(e){} }
 async function sendMove(){ const btn=$("alertSend"), txt=$("alertText").value.trim(); if(!txt){ toast("Write the note first"); return; } const ten=Q("ten"); btn.disabled=true; btn.textContent="Sending…";
-  try{ await rateDesk.marketNote({ kind:"move", title:"10-yr move", text:txt, by:settings.publisher, tenYear: ten?{ y:+ten.price.toFixed(3), bps:curMove?curMove.bps:null, since:(moveRef()||{}).at||"close" }:null, lean: marketPayload()&&marketPayload().lean });
+  try{ await rateDesk.marketNote({ kind:"move", title:"10-yr move", text:txt, comment:$("alertComment").value.trim(), by:settings.publisher, tenYear: ten?{ y:+ten.price.toFixed(3), bps:curMove?curMove.bps:null, since:(moveRef()||{}).at||"close" }:null, lean: marketPayload()&&marketPayload().lean });
     await rebase(); doneBtn(btn,"Sent"); setTimeout(()=>$("alert").classList.remove("on"),700); toast("Market note sent to every toolkit"); loadNotes(); }
   catch(e){ msg("bad","<b>Couldn't send:</b> "+esc(e.message||e)); btn.textContent="Send to bankers"; } btn.disabled=false; }
 async function rebase(){ const ten=Q("ten"); if(!ten) return; settings=await rateDesk.saveSettings({ moveRef:{ y:+ten.price.toFixed(3), at:new Date().toISOString(), why:"note" } }); shownMoveKey=null; }
@@ -354,9 +375,8 @@ function renderLeanBlock(){ if(!market) return; const ln=curLean(); const b=$("l
   $("leanRide").textContent=settings.sendLean===false?"Not sent with rate publishes (Settings).":"Sent to the toolkits with every rate publish.";
   const ev=MK.upcoming(market.events||[], Date.now(), 45).slice(0,5);
   $("cal").innerHTML=ev.length?ev.map(e=>`<div class="ev"><span>${esc(e.name)}</span><span class="when">${esc(MK.whenLabel(e.at, Date.now()))}</span></div>`).join(""):`<div class="hint">No major releases scheduled in the next 45 days.</div>`; }
-async function sendLean(){ const ln=curLean(); if(ln.state==="unknown"){ toast("Not enough data for a lean yet"); return; } const btn=$("leanSend"); btn.disabled=true;
-  try{ await rateDesk.marketNote({ kind:"lean", title:"Market lean", text:`Market lean: ${ln.label}. ${ln.line}.${ln.warn?" "+ln.warn+".":""}`, by:settings.publisher, lean:{ state:ln.state, label:ln.label, line:ln.line }, tenYear: marketPayload()&&marketPayload().tenYear });
-    doneBtn(btn,"Sent"); toast("Lean sent to every toolkit"); loadNotes(); } catch(e){ msg("bad","<b>Couldn't send:</b> "+esc(e.message||e)); } btn.disabled=false; }
+function sendLean(){ const ln=curLean(); if(ln.state==="unknown"){ toast("Not enough data for a lean yet"); return; }
+  openComposer({ kind:"lean", title:"Market lean", text:`Market lean: ${ln.label}. ${ln.line}.${ln.warn?" "+ln.warn+".":""}`, lean:{ state:ln.state, label:ln.label, line:ln.line }, tenYear: marketPayload()&&marketPayload().tenYear }); }
 
 /* ---------- briefs ---------- */
 function liveMap(){ const o={}; MK.METRICS.forEach(m=>{ const q=Q(m.key); if(q) o[m.key]=q; }); return o; }
@@ -366,16 +386,15 @@ function renderBrief(){ if(!market) return; if(!briefKind) briefKind=MK.briefFor
   document.querySelectorAll("#briefTabs button").forEach(x=>x.classList.toggle("on",x.dataset.b===briefKind)); movePill();
   const sug={morning:"Best sent 8:00–9:30 AM",midday:"Best sent around noon",eod:"Best sent after 4:00 PM"}[briefKind]; $("briefHint").textContent=sug+(MK.briefFor(Date.now())===briefKind?" · this is the one for right now":""); }
 function movePill(){ const on=document.querySelector("#briefTabs button.on"), pill=document.querySelector("#briefTabs .pill"); if(!on||!pill) return; pill.style.left=on.offsetLeft+"px"; pill.style.width=on.offsetWidth+"px"; }
-async function sendBrief(){ const b=curBrief(); const btn=$("briefSend"); let text=b.lines.map(l=>l.replace(/^•\s*/,"")).join(" "); if(text.length>280) text=text.slice(0,279)+"…"; btn.disabled=true;
-  try{ await rateDesk.marketNote({ kind:"brief-"+b.kind, title:b.title, text, by:settings.publisher, lean: marketPayload()&&marketPayload().lean, tenYear: marketPayload()&&marketPayload().tenYear }); doneBtn(btn,"Sent"); toast(b.title.split(" · ")[0]+" sent to every toolkit"); loadNotes(); }
-  catch(e){ msg("bad","<b>Couldn't send:</b> "+esc(e.message||e)); } btn.disabled=false; }
+function sendBrief(){ const b=curBrief(); let text=b.lines.map(l=>l.replace(/^•\s*/,"")).join(" "); if(text.length>280) text=text.slice(0,279)+"…";
+  openComposer({ kind:"brief-"+b.kind, title:b.title, text, lean: marketPayload()&&marketPayload().lean, tenYear: marketPayload()&&marketPayload().tenYear }); }
 function useBriefAsNote(kind){ if(!market){ toast("Market data is still loading"); return; } const b=curBrief(kind); if(!b.short){ toast("Not enough market data yet"); return; } $("note").value=b.short; $("note").focus(); toast("Added to the rate note — edit before publishing"); }
 async function copyBrief(){ try{ await navigator.clipboard.writeText(curBrief().text); if(window.NMC&&NMC.copied) NMC.copied($("briefCopy")); else toast("Copied"); }catch(e){ toast("Couldn't copy"); } }
-function renderSent(){ const items=(marketNotes||[]).slice(0,4); $("sent").innerHTML=items.length?`<div class="hint" style="margin-bottom:4px"><b style="color:var(--ink)">Recently sent to bankers</b></div>`+items.map(n=>`<div class="it"><b>${esc(fmtWhen(n.at))}</b> · ${esc(n.title||n.kind)} — ${esc(n.text.slice(0,110))}${n.text.length>110?"…":""}</div>`).join(""):""; }
+function renderSent(){ const items=(marketNotes||[]).slice(0,4); $("sent").innerHTML=items.length?`<div class="hint" style="margin-bottom:4px"><b style="color:var(--ink)">Recently sent to bankers</b></div>`+items.map(n=>`<div class="it"><b>${esc(fmtWhen(n.at))}</b> · ${esc(n.title||n.kind)} — ${esc(n.text.slice(0,110))}${n.text.length>110?"…":""}${n.comment?` <i>“${esc(n.comment.slice(0,80))}”</i>`:""}</div>`).join(""):""; }
 
 /* ---------- headlines drawer ---------- */
 function toggleDrawer(open){ $("drawer").classList.toggle("open",open); $("scrim").classList.toggle("on",open); if(open) renderHeads(); }
-document.addEventListener("keydown",e=>{ if(e.key==="Escape") toggleDrawer(false); });
+document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ toggleDrawer(false); if($("composer").style.display==="flex") closeComposer(); } if(e.key==="Enter"&&(e.metaKey||e.ctrlKey)&&$("composer").style.display==="flex") sendComposer(); });
 function renderHeads(flashTitle){ const all=market&&market.headlines||[]; const hs=all.filter(h=>headFilter==="all"||h.tag===headFilter);
   const lab={better:["tag-good","Better"],worse:["tag-warn","Worse"],neutral:["tag-flat","Neutral"]};
   $("heads").innerHTML=hs.length?hs.slice(0,60).map((h,i)=>{ const [c,l]=lab[h.tag]||lab.neutral; const age=h.at?MK.ago(Math.round((Date.now()-Date.parse(h.at))/60000)):"";
@@ -470,6 +489,24 @@ function renderPace(){ const p=MK.publishPace(history, Date.now()); const el=$("
   const wd=new Date().toLocaleDateString("en-US",{timeZone:"America/New_York",weekday:"short"}); const fr=$("firstToday"); if(fr) fr.style.display=(p.today===0&&wd!=="Sat"&&wd!=="Sun")?"block":"none"; }
 document.querySelectorAll("#briefTabs button").forEach(b=>b.onclick=()=>{ briefKind=b.dataset.b; renderBrief(); });
 document.querySelectorAll("#filt button").forEach(b=>b.onclick=()=>{ headFilter=b.dataset.f; document.querySelectorAll("#filt button").forEach(x=>x.classList.toggle("on",x===b)); renderHeads(); });
+
+/* ---------- composer: every send can carry Kobe's own note; Broadcast is a note written from scratch ---------- */
+let cmp=null;
+function openComposer(o){ cmp=Object.assign({ kind:"broadcast", title:"", text:"" }, o||{}); const bc=cmp.kind==="broadcast";
+  if(bc&&!cmp.title) cmp.title="Message from the rate desk";
+  $("cmpKind").textContent=bc?"Broadcast":cmp.kind==="lean"?"Market lean":cmp.kind.startsWith("brief")?"Brief":"Market note";
+  $("cmpTitle").textContent=bc?"Broadcast to every banker":"Send "+(cmp.title||"note").split(" · ")[0].toLowerCase()+" to bankers";
+  $("cmpMsgLabel").textContent=bc?"Your message":"Message (edit if you like)"; $("cmpText").value=cmp.text||""; $("cmpNote").value="";
+  $("cmpNoteWrap").style.display=bc?"none":""; $("cmpText").placeholder=bc?"e.g. Heads up: rate desk will republish right after the 8:30 jobs report.":"";
+  $("composer").style.display="flex"; cmpCount(); setTimeout(()=>(bc?$("cmpText"):$("cmpNote")).focus(),60); }
+function closeComposer(){ $("composer").style.display="none"; cmp=null; }
+function cmpCount(){ const t=$("cmpText").value, n=$("cmpNote").value; const c=$("cmpCnt"); c.textContent=t.length+" / 280"; c.classList.toggle("over",t.length>=280);
+  $("pvTitle").textContent=cmp?cmp.title:""; $("pvText").textContent=t||"—"; const pv=$("pvNote"); pv.style.display=n.trim()?"":"none"; pv.textContent=n.trim()?"“"+n.trim()+"” — "+(settings.publisher||"Rate Desk"):"";
+  $("cmpSend").disabled=!t.trim(); }
+async function sendComposer(){ if(!cmp) return; const text=$("cmpText").value.trim(), comment=$("cmpNote").value.trim(); if(!text){ toast("Write a message first"); return; } const btn=$("cmpSend"); btn.disabled=true; btn.textContent="Sending…";
+  try{ await rateDesk.marketNote({ kind:cmp.kind, title:cmp.title, text, comment, by:settings.publisher, lean:cmp.lean||null, tenYear:cmp.tenYear||null });
+    doneBtn(btn,"Sent"); toast((cmp.kind==="broadcast"?"Broadcast":"Note")+" sent to every toolkit"); loadNotes(); if(cmp.after) cmp.after(); setTimeout(closeComposer,650); }
+  catch(e){ toast("Couldn't send: "+(e.message||e)); btn.textContent="Send to bankers"; } btn.disabled=false; }
 
 /* ---------- inbox: everything waiting on Kobe, in one place that lights up ---------- */
 const INBOX_SEEN_KEY="nmc-rd-inbox";

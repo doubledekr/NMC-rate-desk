@@ -115,6 +115,7 @@ ipcMain.handle("github:marketNote", async (e, payload) => {
   const s = settings(); const now = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
   const note = { format: MARKET_FORMAT, id: now, at: now, by: payload.by || s.publisher || "Rate Desk", kind: String(payload.kind || "note"),
     title: String(payload.title || "").slice(0, 80), text: String(payload.text || "").trim().slice(0, 280),
+    ...(String(payload.comment || "").trim() ? { comment: String(payload.comment).trim().slice(0, 200) } : {}),
     tenYear: payload.tenYear || null, lean: payload.lean || null, ping: { server: s.pingServer, topic: s.pingTopic } };
   if (!note.text) throw new Error("The note is empty");
   const msg = `Market note ${now.slice(0, 16).replace("T", " ")} UTC — ${note.kind}: ${note.text.slice(0, 60)}`;

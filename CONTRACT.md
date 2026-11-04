@@ -57,13 +57,17 @@ Format 1 (retired) used seven tiers. Toolkits still read it by mapping `680+` �
   "kind": "move",
   "title": "10-yr move",
   "text": "10-yr down 6 bps to 4.82% since yesterday's close. Rates unchanged for now — could improve if this holds.",
+  "comment": "Hold locks until after the jobs report.",
   "tenYear": { "y": 4.82, "bps": -6, "since": "close" },
   "lean": { "state": "improving", "label": "Improving", "line": "…" },
   "ping": { "server": "https://ntfy.sh", "topic": "nmc-rates-…" }
 }
 ```
 
-- `kind` — `move` (10-yr moved past the alert threshold), `lean` (market lean), `brief-morning`, `brief-midday`, `brief-eod`.
+- `kind` — `move` (10-yr moved past the alert threshold), `lean` (market lean), `brief-morning`, `brief-midday`, `brief-eod`,
+  `broadcast` (a message the rate desk wrote from scratch).
+- `comment` *(optional, v1.5+)* — the rate desk's own note added to the message, at most 200 characters. Show it under `text`,
+  set apart (e.g. quoted, with `by`). Absent when there is none.
   Unknown kinds are shown like any other note.
 - `id` changes on every note; the Toolkit compares it to decide "new market note arrived".
 - `text` — plain text, at most 280 characters. Show it as written.
