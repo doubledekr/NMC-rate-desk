@@ -4,7 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>NMC Rate Desk</title>
+<link rel="stylesheet" href="theme/nmc-theme.css">
+<link rel="stylesheet" href="theme/rate-desk.css">
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Lora:ital@0;1&family=Montserrat:wght@400;500;600;700&display=swap');
 :root{--brand:#A53222;--ink:#26262E;--muted:#5C616E;--line:#E2DCCF;--paper:#FBF8F2;--cream:#F8F2E8;--good:#2E6B4F;--warn:#9A4E0E;--bad:#B3261E}
 *{box-sizing:border-box}
 body{margin:0;background:var(--paper);color:var(--ink);font:14px/1.5 "Segoe UI",Arial,Helvetica,sans-serif}
@@ -51,6 +54,7 @@ input.rate.bad{border-color:var(--bad);background:#FFF4F3}
 <div id="updateBar"></div>
 <div class="wrap">
   <div class="top">
+    <div class="logo" aria-hidden="true"><svg width="30" height="30" viewBox="0 0 16 16" fill="none" stroke="#A53222" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 8L8 3l5.5 5M4 7v6.5h8V7"/></svg></div>
     <div><h1>NMC Rate Desk</h1><div class="tag">Publishes VA par rates by credit tier to every NMC Toolkit</div></div>
     <span class="sp"></span>
     <div class="status"><span><span class="dot" id="dotGh"></span><span id="ghText">GitHub: not connected</span></span><span><span class="dot" id="dotPing"></span><span id="pingText">Relay</span></span><span id="ver"></span></div>
@@ -74,6 +78,7 @@ input.rate.bad{border-color:var(--bad);background:#FFF4F3}
     <div class="panel">
       <h2>Live on the toolkits</h2>
       <div id="liveBox" class="hint">Loading…</div>
+      <div id="liveTiles" class="tiles"></div>
       <h2 style="margin-top:18px">640+ tier, last 30 days</h2>
       <svg id="chart" class="chart" viewBox="0 0 440 160" preserveAspectRatio="none"></svg>
       <div class="hint" id="chartHint"></div>
@@ -108,6 +113,7 @@ input.rate.bad{border-color:var(--bad);background:#FFF4F3}
 
 <div class="toast" id="toast"></div>
 
+<script src="theme/nmc-motion.js"></script>
 <script>
 const TIERS=["640+","620-639","580-619","<580"];
 const TIER_LABEL={"640+":"640 and up","620-639":"620–639","580-619":"580–619","<580":"Below 580"};
@@ -132,9 +138,10 @@ function validate(){ const {out,ok}=readTiers(); let m=""; if(!ok) m="Fill every
   $("validMsg").textContent=m; $("validMsg").className="hint "+(m?"err":""); $("publishBtn").disabled=!!m; return !m; }
 function fillFromLive(){ renderTiers(); $("note").value=""; }
 
-function renderLive(){ const b=$("liveBox"); if(!live){ b.innerHTML="Nothing published yet."; return; } if(live.error){ b.innerHTML=`<span class="err">${live.error}</span>`; return; }
+function renderLive(){ const b=$("liveBox"); if(!live){ b.innerHTML="Nothing published yet."; $("liveTiles").innerHTML=""; return; } if(live.error){ b.innerHTML=`<span class="err">${live.error}</span>`; $("liveTiles").innerHTML=""; return; }
   const t=vaTiers(live); const prev=vaTiers(history[1]);
-  b.innerHTML=`<div><b>${fmtWhen(live.published)}</b> · ${live.by||""}${live.note?` · <i>${esc(live.note)}</i>`:""}</div><table style="margin-top:6px">${TIERS.map(k=>`<tr><td>${TIER_LABEL[k]}</td><td class="num"><span class="live" style="color:var(--ink)">${pct(t[k])}</span>${delta(t[k],prev[k])}</td></tr>`).join("")}</table>`; }
+  $("liveTiles").innerHTML=TIERS.map(k=>`<div class="stat"><div class="v" data-tick="live.${k}">${pct(t[k])}<span class="d">${delta(t[k],prev[k])}</span></div><div class="k">${TIER_LABEL[k]}</div></div>`).join("");
+  b.innerHTML=`<div><b>${fmtWhen(live.published)}</b> · ${live.by||""}${live.note?` · <i>${esc(live.note)}</i>`:""}</div><table style="margin-top:6px;display:none">${TIERS.map(k=>`<tr><td>${TIER_LABEL[k]}</td><td class="num"><span class="live" style="color:var(--ink)">${pct(t[k])}</span>${delta(t[k],prev[k])}</td></tr>`).join("")}</table>`; }
 function renderHistory(){ $("hist").innerHTML=history.length?history.slice(0,40).map((h,i)=>{ const t=vaTiers(h); const p=vaTiers(history[i+1]);
   return `<tr><td>${fmtWhen(h.published)}</td><td>${esc(h.by||"")}</td>${TIERS.map(k=>`<td class="num">${pct(t[k])}${delta(t[k],p[k])}</td>`).join("")}<td class="hint">${esc(h.note||"")}</td></tr>`; }).join(""):`<tr><td colspan="7" class="hint">No publishes yet.</td></tr>`;
   renderChart(); }
@@ -150,10 +157,10 @@ function renderChart(){ const svg=$("chart"); const cutoff=Date.now()-30*8640000
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
 async function refresh(){ const has=await rateDesk.hasToken(); $("firstRun").style.display=has?"none":"block";
-  if(!has){ setGh(false,"GitHub: no publishing key"); live=null; history=[]; renderTiers(); renderLive(); renderHistory(); return; }
+  if(!has){ setGh(false,"GitHub: no publishing key"); live=null; history=[]; renderTiers(); renderLive(); renderHistory(); $("liveTiles").innerHTML=""; if(window.NMC) NMC.enter(); return; }
   const [l,h]=await Promise.all([rateDesk.live(), rateDesk.history()]);
   if(l&&l.error){ setGh(false,"GitHub: "+l.error); live=null; } else { live=l; setGh(true,"GitHub: connected · doubledekr/nmc-rate-desk"); }
-  history=Array.isArray(h)?h:[]; renderTiers(); renderLive(); renderHistory(); }
+  history=Array.isArray(h)?h:[]; renderTiers(); renderLive(); renderHistory(); if(window.NMC){ NMC.enter(); } }
 function setGh(on,text){ $("dotGh").className="dot "+(on?"on":"off"); $("ghText").textContent=text; }
 
 function confirmPublish(){ if(!validate()) return; const {out}=readTiers(); const t=vaTiers(live);
@@ -164,7 +171,7 @@ function closeConfirm(){ $("confirm").style.display="none"; }
 async function doPublish(){ const {out,ok}=readTiers(); if(!ok) return; $("goBtn").disabled=true; $("goBtn").textContent="Publishing…";
   try{ const r=await rateDesk.publish({ by: settings.publisher, note: $("note").value, products: { va_irrrl: { label: "VA Streamline", tiers: out } } });
     closeConfirm(); msg("good",`<b>Live ${fmtWhen(r.version)}.</b> ${r.pinged?"Toolkits were pinged instantly.":"The instant ping didn’t go through — toolkits will pick it up on their next check within a few minutes."}${r.commit?` <a href="#" onclick="rateDesk.open('${r.commit}');return false">View the commit</a>`:""}`);
-    $("note").value=""; await refresh(); }
+    $("note").value=""; await refresh(); const pb=$("publishBtn"); pb.classList.add("pulse"); setTimeout(()=>pb.classList.remove("pulse"),400); }
   catch(e){ closeConfirm(); msg("bad","<b>Publish failed:</b> "+esc(e.message||e)); }
   $("goBtn").disabled=false; $("goBtn").textContent="Publish now"; }
 

@@ -1,0 +1,54 @@
+/* Rate Desk on the shared NMC theme: the red glass band at the top, tiles for the live rates, the chart that draws itself. */
+body{font-family:var(--sans,"Montserrat","Segoe UI",Arial,sans-serif);font-size:14px}
+:root{--serif:"Lora",Georgia,"Times New Roman",serif;--sans:"Montserrat","Segoe UI","Helvetica Neue",Arial,sans-serif;--cream-soft:#F7F1E6;--cream:#EDE3D2;--panel:#fff;--brand:#A53222;--warn:#8F3223}
+h1,h2{font-family:var(--serif)}
+.wrap{max-width:1080px;padding:16px 22px 40px}
+/* top band */
+.top{background:var(--nmc-side);color:#fff;border:none;border-radius:14px;padding:14px 18px;margin:0 0 16px;box-shadow:0 1px 0 rgba(255,255,255,.12) inset,0 18px 40px -22px rgba(0,0,0,.6);position:relative;overflow:hidden}
+.top::after{content:"";position:absolute;top:-40%;left:-70%;width:45%;height:180%;background:linear-gradient(100deg,transparent 0%,rgba(255,255,255,.14) 50%,transparent 100%);transform:skewX(-18deg);animation:nmc-shimmer 9s ease-in-out infinite;pointer-events:none}
+.top h1{color:#fff;font-size:22px;font-weight:400}
+.top .tag{color:rgba(255,255,255,.72)}
+.top .status{color:rgba(255,255,255,.8)}
+.top .status .dot{background:rgba(255,255,255,.35)}.top .status .dot.on{background:#A9E6C1;box-shadow:0 0 0 3px rgba(169,230,193,.18)}.top .status .dot.off{background:#FFC2B3}
+.top .btn.ghost{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.25);color:#fff;backdrop-filter:blur(8px)}
+.top .btn.ghost:hover{background:rgba(255,255,255,.2);border-color:rgba(255,255,255,.4)}
+.top .logo{background:#fff;border-radius:10px;padding:6px 10px;box-shadow:0 10px 24px -12px rgba(0,0,0,.7);display:inline-flex;align-items:center;margin-right:4px}
+.top .logo img{height:30px;display:block}
+/* panels, tables, fields */
+.panel{border-radius:14px;padding:18px 20px}
+th{font-size:10.5px;letter-spacing:.1em}
+td,th{border-bottom:1px solid #F0EBE1}
+tbody tr{transition:background .12s}.hist tbody tr:hover{background:var(--cream-soft)}
+input.rate{border-radius:9px;min-height:36px;font-family:var(--serif);font-size:16px;transition:border-color .12s,box-shadow .12s}
+input[type=text]{border-radius:9px;min-height:36px}
+.live{font-family:var(--serif)}
+.delta{font-family:var(--sans);font-size:11px;font-weight:600}.delta.up{color:var(--warn)}.delta.down{color:var(--nmc-good)}
+.banner{border-radius:10px;border-left-width:3px}
+.banner.good{background:#fff;border-color:#BBD6C6;border-left-color:var(--nmc-good);box-shadow:0 8px 20px -14px rgba(46,107,79,.5)}
+.banner.bad{background:#fff;border-color:#E6C2B9;border-left-color:var(--brand)}
+.banner.info{background:#fff;border-color:var(--line);border-left-color:var(--brand)}
+#updateBar{background:#fff;border-bottom:1px solid var(--line);border-left:3px solid var(--brand)}
+/* live tiles */
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:8px 0 4px}
+.stat{padding:12px 14px;border-left:3px solid var(--brand);background:#fff;border:1px solid var(--line);border-left:3px solid var(--brand);border-radius:10px;box-shadow:0 1px 2px rgba(52,55,64,.04),0 10px 24px -16px rgba(52,55,64,.25)}
+.stat .v{font-family:var(--serif);font-size:22px;line-height:1.1;color:var(--ink)}
+.stat .k{font-size:11px;color:var(--muted);margin-top:4px}
+.stat .d{font-family:var(--sans);font-size:11px;font-weight:600;margin-left:6px}
+/* modal + toast */
+.modal{animation:nmc-fadein .18s ease;background:rgba(107,31,21,.28);backdrop-filter:blur(4px)}
+.modal .box{animation:nmc-menuin .2s cubic-bezier(.2,.9,.3,1.2);border:1px solid rgba(255,255,255,.9);box-shadow:0 30px 60px -24px rgba(107,31,21,.5)}
+.toast{border-radius:10px;transition:opacity .2s,transform .2s;transform:translateY(6px)}.toast.on{transform:none}
+/* entrances */
+body.nmc-enter .hist tbody tr{animation:nmc-rowin .42s var(--nmc-ease) both}
+body.nmc-enter .hist tbody tr:nth-child(1){animation-delay:.03s}body.nmc-enter .hist tbody tr:nth-child(2){animation-delay:.08s}body.nmc-enter .hist tbody tr:nth-child(3){animation-delay:.13s}body.nmc-enter .hist tbody tr:nth-child(4){animation-delay:.18s}body.nmc-enter .hist tbody tr:nth-child(5){animation-delay:.23s}body.nmc-enter .hist tbody tr:nth-child(n+6){animation-delay:.28s}
+body.nmc-enter .panel{animation:nmc-screenin .32s var(--nmc-ease) both}
+body.nmc-enter .grid .panel:nth-child(2){animation-delay:.06s}body.nmc-enter .wrap>.panel{animation-delay:.12s}
+body.nmc-enter #rateTable tbody tr{animation:nmc-rowin .4s var(--nmc-ease) both}
+body.nmc-enter #rateTable tbody tr:nth-child(2){animation-delay:.05s}body.nmc-enter #rateTable tbody tr:nth-child(3){animation-delay:.1s}body.nmc-enter #rateTable tbody tr:nth-child(4){animation-delay:.15s}
+.btn.pulse{animation:nmc-snap .34s var(--nmc-snap)}
+.stat .d{white-space:nowrap;display:inline-block}.stat .v{white-space:nowrap}
+td.num,.hist td:nth-child(1),.hist td:nth-child(2){white-space:nowrap}
+input.rate{border:1px solid var(--line);box-shadow:inset 0 1px 2px rgba(52,55,64,.06)}
+.delta{white-space:nowrap}
+.grid{grid-template-columns:1fr 1.15fr}
+#rateTable td:first-child,#rateTable th{white-space:nowrap}
