@@ -2,6 +2,8 @@ name: Build Rate Desk
 
 # Builds installers and posts a GitHub release on every push to main.
 # Rate publishes (rates/**) never trigger a build.
+# Windows publishes the release as soon as it's built; the Mac build adds its files to the same release when it
+# finishes, so a slow or stuck Mac queue never holds up the Windows update.
 on:
   push:
     branches: [main]
@@ -14,25 +16,8 @@ permissions:
   contents: write
 
 jobs:
-  build:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: macos-latest
-            script: build:mac
-            artifact: NMC-Rate-Desk-mac
-            glob: |
-              dist/*.dmg
-              dist/*.zip
-              dist/latest-mac.yml
-          - os: windows-latest
-            script: build:win
-            artifact: NMC-Rate-Desk-windows
-            glob: |
-              dist/*.exe
-              dist/latest.yml
-    runs-on: ${{ matrix.os }}
+  windows:
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -40,25 +25,11 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - run: npm run ${{ matrix.script }}
+      - run: npm run build:win
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"   # unsigned, like the toolkit
-      - uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.artifact }}
-          path: ${{ matrix.glob }}
-          if-no-files-found: error
-
-  release:
-    needs: build
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          path: out
       - id: v
+        shell: bash
         run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
       - uses: softprops/action-gh-release@v2
         with:
@@ -70,7 +41,33 @@ jobs:
             Installed copies check this page for updates automatically.
 
             - **Windows:** `NMC-Rate-Desk-Setup-*.exe` — unsigned, so SmartScreen may show "unrecognized app" → More info → Run anyway.
-            - **Mac:** `NMC-Rate-Desk-*.dmg` — unsigned, so the first open is right-click → Open.
+            - **Mac:** `NMC-Rate-Desk-*.dmg` — unsigned, so the first open is right-click → Open. (Added when the Mac build finishes; it can lag behind Windows.)
 
             First run: Settings → paste the publishing key (a GitHub fine-grained token for this repo, Contents: read and write).
-          files: out/**/*
+          files: |
+            dist/*.exe
+            dist/latest.yml
+
+  mac:
+    needs: windows
+    runs-on: macos-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build:mac
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      - id: v
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.v.outputs.version }}
+          files: |
+            dist/*.dmg
+            dist/*.zip
+            dist/latest-mac.yml
