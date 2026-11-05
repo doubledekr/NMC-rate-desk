@@ -593,6 +593,10 @@ async function pingTest(){ await saveSettings(); const ok=await rateDesk.pingTes
 rateDesk.onUpdateStatus(s=>{ const b=$("updateBar"); if(s.state==="ready"){ b.style.display="block"; b.innerHTML=`Version ${s.version} is ready. <button class="btn small" onclick="rateDesk.installUpdate()">Update &amp; restart</button>`; }
   else if(s.state==="manual"){ b.style.display="block"; b.innerHTML=`Version ${s.version} is available. <button class="btn small" onclick="rateDesk.openReleases()">Download</button>`; }
   else if(s.state==="downloading"){ b.style.display="block"; b.textContent=`Downloading version ${s.version}…`; } });
+/* desktop shell with a hidden title bar: draw the 38px band the window buttons sit in (no band without the bridge flag) */
+if(window.rateDesk&&rateDesk.titleBand){ document.body.classList.add("nmc-band"); if(rateDesk.platform==="darwin") document.body.classList.add("nmc-mac");
+  const tb=document.createElement("div"); tb.className="nmc-tb"; tb.innerHTML='<div class="l"></div><div class="r"></div>'; document.body.prepend(tb);
+  tb.addEventListener("dblclick",()=>{ if(rateDesk.toggleMaximize) rateDesk.toggleMaximize(); }); }
 (async()=>{ $("ver").textContent="v"+rateDesk.version(); settings=await rateDesk.settings(); $("pingText").textContent="Relay: "+settings.pingServer.replace(/^https?:\/\//,""); $("dotPing").className="dot on";
   await refresh(); setInterval(refresh, 10*60*1000);
   loadNotes(); await loadMarket(false); await loadQuotes(false); renderInbox();

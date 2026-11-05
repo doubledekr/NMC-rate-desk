@@ -245,3 +245,12 @@ summary{transition:color .15s}summary:hover{color:var(--brand)}
 body.nmc-bg *,body.nmc-bg *::before,body.nmc-bg *::after{animation-play-state:paused!important}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.ticking{color:inherit!important}}
 @media print{aside{background:none;color:var(--ink)}}
+
+/* ===== desktop title band: the shell hides the stock title bar; the page draws its own 38px strip and the OS keeps only its buttons ===== */
+/* Same as Toolkit v1.17.0. The Rate Desk has no sidebar, so .l is only the room the Mac traffic lights need and the whole band is paper. */
+body.nmc-band .nmc-tb{position:sticky;top:0;z-index:1000;height:38px;display:flex;-webkit-app-region:drag;user-select:none}
+body.nmc-band .nmc-tb .l{width:0;flex:none;background:var(--paper)}
+body.nmc-band .nmc-tb .r{flex:1;background:var(--paper)}
+body.nmc-band.nmc-mac .nmc-tb .l{width:0;padding-left:84px}   /* room for the traffic lights */
+body.nmc-band .drawer,body.nmc-band .scrim,body.nmc-band .modal{top:38px}
+@media print{.nmc-tb{display:none}}

@@ -144,11 +144,21 @@ ipcMain.handle("app:attention", (e, n) => { try { app.setBadgeCount(n || 0); } c
 ipcMain.handle("shell:open", (e, url) => { if (/^https:\/\//.test(String(url))) shell.openExternal(url); return true; });
 
 function createWindow(){
-  const win = mainWin = new BrowserWindow({ width: 1080, height: 820, minWidth: 820, minHeight: 600, title: "NMC Rate Desk " + app.getVersion(), backgroundColor: "#FBF8F2", icon: path.join(__dirname, "build", "icon.png"),
+  /* Our own title band instead of the stock one (same as Toolkit v1.17.0): the page draws a 38px strip and the OS keeps only its
+     window buttons — Windows draws them top-right (title-bar overlay), macOS keeps its traffic lights top-left.
+     Snap layouts, the system shadow and Windows 11's rounded corners still apply because this is still a normal window. */
+  const mac = process.platform === "darwin";
+  const win = mainWin = new BrowserWindow({ width: 1280, height: 880, minWidth: MIN_W, minHeight: MIN_H, title: "NMC Rate Desk " + app.getVersion(), backgroundColor: "#FBF8F2", icon: path.join(__dirname, "build", "icon.png"), show: false,
+    titleBarStyle: mac ? "hiddenInset" : "hidden",
+    ...(mac ? { trafficLightPosition: { x: 14, y: 12 } } : { titleBarOverlay: { color: "#FBF8F2", symbolColor: "#2B2622", height: 38 } }),
     webPreferences: { preload: path.join(__dirname, "preload.js"), contextIsolation: true, nodeIntegration: false, sandbox: false } });
+  win.once("ready-to-show", () => win.show());                                     /* appears painted, never a white flash */
   win.loadFile(path.join(__dirname, "app", "index.html"));
   win.webContents.on("context-menu", (e, p) => { const items = []; if (p.isEditable) items.push({ role: "cut" }, { role: "copy" }, { role: "paste" }, { role: "selectAll" }); else if (p.selectionText) items.push({ role: "copy" }); if (items.length) Menu.buildFromTemplate(items).popup(); });
   win.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: "deny" }; });
   return win; }
+/* window floor: below this the two-column layout and the live strip start to crowd (checked at 1100x800 outer) */
+const MIN_W = 1100, MIN_H = 800;
+ipcMain.on("win:toggleMax", e => { const w = BrowserWindow.fromWebContents(e.sender); if (!w) return; if (process.platform === "darwin") { w.isFullScreen() ? w.setFullScreen(false) : (w.isMaximized() ? w.unmaximize() : w.maximize()); } else { w.isMaximized() ? w.unmaximize() : w.maximize(); } });
 app.whenReady().then(() => { Menu.setApplicationMenu(null); createWindow(); setupUpdates(); app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); }); });
 app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });
